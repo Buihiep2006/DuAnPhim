@@ -1,0 +1,10 @@
+export { default as AdminDashboard } from './AdminDashboard';
+export { default as AdminMovies } from './AdminMovies';
+export { default as AdminShowtimes } from './AdminShowtimes';
+export { default as AdminCinemas } from './AdminCinemas';
+export { default as AdminUsers } from './AdminUsers';
+export { default as AdminServices } from './AdminServices';
+export { default as AdminPromotions } from './AdminPromotions';
+export { default as AdminReports } from './AdminReports';
+export { default as AdminSettings } from './AdminSettings';
+export { default as AdminLogin } from './AdminLogin';
