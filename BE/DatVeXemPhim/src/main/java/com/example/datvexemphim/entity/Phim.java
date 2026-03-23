@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.Setter;
 import java.util.UUID;
 import java.time.LocalDateTime;
-import org.hibernate.annotations.ColumnDefault;
 
 @Getter
 @Setter
