@@ -1,0 +1,73 @@
+src/app/App.tsx(1,8): error TS2882: Cannot find module or type declarations for side-effect import of 'bootstrap/dist/css/bootstrap.min.css'.
+src/app/App.tsx(2,8): error TS2882: Cannot find module or type declarations for side-effect import of '../styles/bootstrap-custom.css'.
+src/app/components/admin/AdminCinemas.tsx(3,30): error TS6133: 'movies' is declared but its value is never read.
+src/app/components/admin/AdminDashboard.tsx(1,55): error TS6133: 'ShoppingBag' is declared but its value is never read.
+src/app/components/admin/AdminDashboard.tsx(2,18): error TS6133: 'showtimes' is declared but its value is never read.
+src/app/components/admin/AdminLayout.tsx(1,18): error TS2305: Module '"react-router"' has no exported member 'Link'.
+src/app/components/admin/AdminMovies.tsx(2,38): error TS6133: 'Filter' is declared but its value is never read.
+src/app/components/admin/AdminSales.tsx(3,1): error TS6133: 'movies' is declared but its value is never read.
+src/app/components/auth/Login.tsx(2,23): error TS2305: Module '"react-router"' has no exported member 'Link'.
+src/app/components/auth/Register.tsx(2,23): error TS2305: Module '"react-router"' has no exported member 'Link'.
+src/app/components/pages/HomePage.tsx(2,10): error TS2305: Module '"react-router"' has no exported member 'Link'.
+src/app/components/pages/HomePage.tsx(4,27): error TS6133: 'showtimes' is declared but its value is never read.
+src/app/components/pages/MovieDetailPage.tsx(1,21): error TS2305: Module '"react-router"' has no exported member 'Link'.
+src/app/components/pages/MovieDetailPage.tsx(2,52): error TS6133: 'Film' is declared but its value is never read.
+src/app/components/pages/ProfilePage.tsx(2,32): error TS6133: 'Gift' is declared but its value is never read.
+src/app/components/pages/SeatSelectionPage.tsx(3,17): error TS6133: 'Armchair' is declared but its value is never read.
+src/app/components/Root.tsx(1,18): error TS2305: Module '"react-router"' has no exported member 'Link'.
+src/app/contexts/AuthContext.tsx(28,39): error TS6133: 'password' is declared but its value is never read.
+src/app/contexts/AuthContext.tsx(42,9): error TS2322: Type '"LOCAL"' is not assignable to type 'AuthProvider'.
+src/app/contexts/AuthContext.tsx(60,44): error TS6133: 'password' is declared but its value is never read.
+src/app/contexts/AuthContext.tsx(73,9): error TS2322: Type '"LOCAL"' is not assignable to type 'AuthProvider'.
+src/app/contexts/AuthContext.tsx(104,9): error TS2322: Type '"LOCAL"' is not assignable to type 'AuthProvider'.
+src/app/pages/admin/AdminReports.tsx(6,18): error TS6133: 'LineChart' is declared but its value is never read.
+src/app/pages/admin/AdminReports.tsx(6,29): error TS6133: 'Line' is declared but its value is never read.
+src/app/pages/auth/RegisterPage.tsx(91,23): error TS2322: Type '(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void' is not assignable to type 'ChangeEventHandler<FormControlElement, Element>'.
+  Types of parameters 'e' and 'event' are incompatible.
+    Type 'ChangeEvent<FormControlElement, Element>' is not assignable to type 'ChangeEvent<HTMLInputElement | HTMLSelectElement, Element>'.
+      Type 'FormControlElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+        Type 'HTMLTextAreaElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+          Type 'HTMLTextAreaElement' is missing the following properties from type 'HTMLInputElement': accept, align, alt, capture, and 29 more.
+src/app/pages/auth/RegisterPage.tsx(105,27): error TS2322: Type '(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void' is not assignable to type 'ChangeEventHandler<FormControlElement, Element>'.
+  Types of parameters 'e' and 'event' are incompatible.
+    Type 'ChangeEvent<FormControlElement, Element>' is not assignable to type 'ChangeEvent<HTMLInputElement | HTMLSelectElement, Element>'.
+      Type 'FormControlElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+        Type 'HTMLTextAreaElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+          Type 'HTMLTextAreaElement' is missing the following properties from type 'HTMLInputElement': accept, align, alt, capture, and 29 more.
+src/app/pages/auth/RegisterPage.tsx(118,27): error TS2322: Type '(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void' is not assignable to type 'ChangeEventHandler<FormControlElement, Element>'.
+  Types of parameters 'e' and 'event' are incompatible.
+    Type 'ChangeEvent<FormControlElement, Element>' is not assignable to type 'ChangeEvent<HTMLInputElement | HTMLSelectElement, Element>'.
+      Type 'FormControlElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+        Type 'HTMLTextAreaElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+          Type 'HTMLTextAreaElement' is missing the following properties from type 'HTMLInputElement': accept, align, alt, capture, and 29 more.
+src/app/pages/auth/RegisterPage.tsx(133,27): error TS2322: Type '(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void' is not assignable to type 'ChangeEventHandler<FormControlElement, Element>'.
+  Types of parameters 'e' and 'event' are incompatible.
+    Type 'ChangeEvent<FormControlElement, Element>' is not assignable to type 'ChangeEvent<HTMLInputElement | HTMLSelectElement, Element>'.
+      Type 'FormControlElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+        Type 'HTMLTextAreaElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+          Type 'HTMLTextAreaElement' is missing the following properties from type 'HTMLInputElement': accept, align, alt, capture, and 29 more.
+src/app/pages/auth/RegisterPage.tsx(146,27): error TS2322: Type '(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void' is not assignable to type 'ChangeEventHandler<FormControlElement, Element>'.
+  Types of parameters 'e' and 'event' are incompatible.
+    Type 'ChangeEvent<FormControlElement, Element>' is not assignable to type 'ChangeEvent<HTMLInputElement | HTMLSelectElement, Element>'.
+      Type 'FormControlElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+        Type 'HTMLTextAreaElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+          Type 'HTMLTextAreaElement' is missing the following properties from type 'HTMLInputElement': accept, align, alt, capture, and 29 more.
+src/app/pages/auth/RegisterPage.tsx(161,27): error TS2322: Type '(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void' is not assignable to type 'ChangeEventHandler<FormControlElement, Element>'.
+  Types of parameters 'e' and 'event' are incompatible.
+    Type 'ChangeEvent<FormControlElement, Element>' is not assignable to type 'ChangeEvent<HTMLInputElement | HTMLSelectElement, Element>'.
+      Type 'FormControlElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+        Type 'HTMLTextAreaElement' is not assignable to type 'HTMLInputElement | HTMLSelectElement'.
+          Type 'HTMLTextAreaElement' is missing the following properties from type 'HTMLInputElement': accept, align, alt, capture, and 29 more.
+src/app/pages/customer/CheckoutPage.tsx(11,25): error TS6133: 'addService' is declared but its value is never read.
+src/app/pages/customer/CheckoutPage.tsx(23,13): error TS6133: 'seat' is declared but its value is never read.
+src/app/pages/customer/HomePage.tsx(177,23): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/app/pages/customer/MovieDetailPage.tsx(77,25): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/app/pages/customer/SeatSelectionPage.tsx(6,1): error TS6133: 'GheNgoiWithDetails' is declared but its value is never read.
+src/app/pages/customer/SeatSelectionPage.tsx(11,11): error TS6133: 'bookingState' is declared but its value is never read.
+src/app/pages/customer/SeatSelectionPage.tsx(186,19): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/app/routes.tsx(1,10): error TS2305: Module '"react-router"' has no exported member 'createBrowserRouter'.
+src/data/mockData.ts(12,3): error TS6133: 'Phim' is declared but its value is never read.
+src/main.tsx(4,10): error TS2882: Cannot find module or type declarations for side-effect import of './styles/index.css'.

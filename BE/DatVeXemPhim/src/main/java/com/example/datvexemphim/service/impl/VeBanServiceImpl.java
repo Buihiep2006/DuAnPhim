@@ -32,6 +32,14 @@ public class VeBanServiceImpl implements VeBanService {
     }
 
     @Override
+    public List<VeBanResponse> getBySuatChieuId(UUID suatChieuId) {
+        return repository.findBySuatChieuId(suatChieuId).stream()
+                .filter(v -> v.getTrangThai() != 3) // Exclude cancelled
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<VeBanResponse> getAll() {
         return repository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
     }

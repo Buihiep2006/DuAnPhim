@@ -12,4 +12,5 @@ public interface GheNgoiService {
     GheNgoiResponse create(GheNgoiRequest request);
     GheNgoiResponse update(UUID id, GheNgoiRequest request);
     void delete(UUID id);
+    java.util.List<GheNgoiResponse> getByPhongChieuId(UUID phongChieuId);
 }

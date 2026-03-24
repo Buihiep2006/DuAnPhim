@@ -31,7 +31,15 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="bg-dark min-vh-100 d-flex align-items-center">
+    <div 
+      className="min-vh-100 d-flex align-items-center"
+      style={{
+        backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), url(https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=2070)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }}
+    >
       <Container>
         <Row className="justify-content-center">
           <Col md={6} lg={5}>

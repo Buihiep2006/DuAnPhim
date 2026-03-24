@@ -26,7 +26,7 @@ public class TheLoaiPhimController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<TheLoaiPhimResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<TheLoaiPhimResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(theLoaiPhimService.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,14 @@ public class TheLoaiPhimController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<TheLoaiPhimResponse>> update(@PathVariable UUID id, @Valid @RequestBody TheLoaiPhimRequest request) {
+    public ResponseEntity<ApiResponse<TheLoaiPhimResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody TheLoaiPhimRequest request) {
         return ResponseEntity.ok(ApiResponse.success(theLoaiPhimService.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         theLoaiPhimService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
     }
 }
+

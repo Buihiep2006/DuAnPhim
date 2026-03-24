@@ -8,4 +8,5 @@ import java.util.UUID;
 
 @Repository
 public interface ChiTietHoaDonVeRepository extends JpaRepository<ChiTietHoaDonVe, UUID> {
+    java.util.List<ChiTietHoaDonVe> findByHoaDonId(java.util.UUID hoaDonId);
 }

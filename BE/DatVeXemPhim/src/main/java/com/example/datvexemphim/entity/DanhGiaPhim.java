@@ -13,6 +13,7 @@ import org.hibernate.annotations.ColumnDefault;
 @Table(name = "danh_gia_phim")
 public class DanhGiaPhim {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @ColumnDefault("newsequentialid()")
     @Column(name = "id", nullable = false)
     private UUID id;

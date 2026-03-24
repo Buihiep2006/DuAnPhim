@@ -31,7 +31,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="bg-light min-vh-100 d-flex align-items-center">
+    <div 
+      className="min-vh-100 d-flex align-items-center"
+      style={{
+        backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2070)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }}
+    >
       <Container>
         <Row className="justify-content-center">
           <Col md={6} lg={5}>

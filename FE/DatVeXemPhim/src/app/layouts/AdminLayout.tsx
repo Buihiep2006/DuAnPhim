@@ -122,14 +122,36 @@ export default function AdminLayout() {
           </Nav.Link>
           <Nav.Link
             as={Link}
-            to="/admin/users"
+            to="/admin/customers"
             className={`text-light mb-2 rounded px-3 py-2 d-flex align-items-center ${
-              isActive('/admin/users') ? 'bg-danger' : 'nav-link-hover'
+              isActive('/admin/customers') ? 'bg-danger' : 'nav-link-hover'
             }`}
             style={{ transition: 'all 0.3s' }}
           >
-            <i className="bi bi-people me-3 fs-5"></i>
-            <span>Người dùng</span>
+            <i className="bi bi-person me-3 fs-5"></i>
+            <span>Khách hàng</span>
+          </Nav.Link>
+          <Nav.Link
+            as={Link}
+            to="/admin/employees"
+            className={`text-light mb-2 rounded px-3 py-2 d-flex align-items-center ${
+              isActive('/admin/employees') ? 'bg-danger' : 'nav-link-hover'
+            }`}
+            style={{ transition: 'all 0.3s' }}
+          >
+            <i className="bi bi-person-badge me-3 fs-5"></i>
+            <span>Nhân viên</span>
+          </Nav.Link>
+          <Nav.Link
+            as={Link}
+            to="/admin/invoices"
+            className={`text-light mb-2 rounded px-3 py-2 d-flex align-items-center ${
+              isActive('/admin/invoices') ? 'bg-danger' : 'nav-link-hover'
+            }`}
+            style={{ transition: 'all 0.3s' }}
+          >
+            <i className="bi bi-receipt me-3 fs-5"></i>
+            <span>Hóa đơn</span>
           </Nav.Link>
           <Nav.Link
             as={Link}

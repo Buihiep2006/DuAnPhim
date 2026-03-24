@@ -14,4 +14,8 @@ public class GheNgoiResponse {
     private String hangGhe;
     private Integer soThuTu;
     private Integer trangThai;
+    
+    // Display fields
+    private String loaiGheTen;
+    private java.math.BigDecimal phuThu;
 }

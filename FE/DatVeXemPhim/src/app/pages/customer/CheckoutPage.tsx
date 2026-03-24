@@ -1,34 +1,79 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Row, Col, Card, Button, Form, ListGroup, Badge, Alert } from 'react-bootstrap';
-import { dichVuData, khuyenMaiData, suatChieuData, phimData, gheNgoiData } from '../../../data/mockData';
+import { Container, Row, Col, Card, Button, Form, ListGroup, Badge, Alert, Spinner } from 'react-bootstrap';
 import { useBooking } from '../../contexts/BookingContext';
 import { useAuth } from '../../contexts/AuthContext';
+
+const API = 'http://localhost:9999/api/admin';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { bookingState, addService, updateServiceQuantity, applyPromoCode, applyPoints, clearBooking } = useBooking();
+  const { bookingState, updateServiceQuantity, applyPromoCode, applyPoints, clearBooking } = useBooking();
 
-  const [selectedServices, setSelectedServices] = useState<{ id: string; quantity: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [services, setServices] = useState<any[]>([]);
+  const [promotions, setPromotions] = useState<any[]>([]);
+  const [showtime, setShowtime] = useState<any>(null);
+  const [roomSeats, setRoomSeats] = useState<any[]>([]);
   const [promoCode, setPromoCode] = useState('');
   const [usePoints, setUsePoints] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('VNPAY');
+  const [error, setError] = useState<string | null>(null);
 
-  const showtime = suatChieuData.find(s => s.id === bookingState.suat_chieu_id);
-  const movie = phimData.find(m => m.id === showtime?.phim_id);
+  useEffect(() => {
+    if (bookingState.suat_chieu_id) {
+      fetchData();
+    } else {
+      navigate('/');
+    }
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch Showtime
+      const sRes = await fetch(`${API}/suat-chieu/${bookingState.suat_chieu_id}`);
+      const sJson = await sRes.json();
+      if (sJson.success) {
+        setShowtime(sJson.data);
+        
+        // Fetch Seats for this room
+        const seatsRes = await fetch(`${API}/ghe-ngoi/phong-chieu/${sJson.data.phongChieuId}`);
+        const seatsJson = await seatsRes.json();
+        if (seatsJson.success) setRoomSeats(seatsJson.data);
+      }
+
+      // Fetch Services
+      const servicesRes = await fetch(`${API}/dich-vu`);
+      const servicesJson = await servicesRes.json();
+      if (servicesJson.success) setServices(servicesJson.data);
+
+      // Fetch Promotions
+      const promoRes = await fetch(`${API}/khuyen-mai`);
+      const promoJson = await promoRes.json();
+      if (promoJson.success) setPromotions(promoJson.data);
+
+    } catch (err) {
+      console.error('Error fetching checkout data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const calculateTicketTotal = () => {
+    if (!showtime) return 0;
     return bookingState.selected_seats.reduce((total, seatId) => {
-      const seat = gheNgoiData.find(s => s.id === seatId);
-      return total + (showtime?.gia_ve_co_ban || 0);
+      const seat = roomSeats.find(s => s.id === seatId);
+      return total + (showtime.giaVeCoBan || 0) + (seat?.phuThu || 0);
     }, 0);
   };
 
   const calculateServiceTotal = () => {
-    return selectedServices.reduce((total, service) => {
-      const dichVu = dichVuData.find(d => d.id === service.id);
-      return total + (dichVu?.gia_ban || 0) * service.quantity;
+    return bookingState.selected_services.reduce((total, s) => {
+      const dv = services.find(d => d.id === s.id);
+      return total + (dv?.giaBan || 0) * s.quantity;
     }, 0);
   };
 
@@ -37,12 +82,11 @@ export default function CheckoutPage() {
   };
 
   const calculateDiscount = () => {
-    // Mock discount calculation
     if (promoCode) {
-      const promo = khuyenMaiData.find(k => k.ma_code === promoCode);
+      const promo = promotions.find(k => k.maCode === promoCode);
       if (promo) {
-        const discount = (calculateSubtotal() * promo.phan_tram_giam) / 100;
-        return Math.min(discount, promo.giam_toi_da);
+        const discount = (calculateSubtotal() * (promo.phanTramGiam || 0)) / 100;
+        return Math.min(discount, promo.giamToiDa || discount);
       }
     }
     return 0;
@@ -50,7 +94,7 @@ export default function CheckoutPage() {
 
   const calculatePointsDiscount = () => {
     if (usePoints && user) {
-      return Math.min(user.diem_tich_luy * 1000, calculateSubtotal() * 0.1); // 1 point = 1000đ, max 10%
+      return Math.min(user.diem_tich_luy * 1000, calculateSubtotal() * 0.1); 
     }
     return 0;
   };
@@ -60,31 +104,68 @@ export default function CheckoutPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('vi-VN') + 'đ';
+    return (amount || 0).toLocaleString('vi-VN') + 'đ';
   };
 
   const handleServiceChange = (serviceId: string, quantity: number) => {
-    const existing = selectedServices.find(s => s.id === serviceId);
-    if (existing) {
-      if (quantity === 0) {
-        setSelectedServices(selectedServices.filter(s => s.id !== serviceId));
-      } else {
-        setSelectedServices(
-          selectedServices.map(s => (s.id === serviceId ? { ...s, quantity } : s))
-        );
-      }
-    } else {
-      setSelectedServices([...selectedServices, { id: serviceId, quantity }]);
-    }
     updateServiceQuantity(serviceId, quantity);
   };
 
-  const handlePayment = () => {
-    // Mock payment
-    alert('Thanh toán thành công! Mã vé đã được gửi vào email.');
-    clearBooking();
-    navigate('/profile');
+  const handlePayment = async () => {
+    if (!user) {
+      alert('Vui lòng đăng nhập để thanh toán');
+      return;
+    }
+
+    try {
+      const selectedPromo = promotions.find(k => k.maCode === promoCode);
+      
+      const payload = {
+        khachHangId: user.id || (user as any).ma, // Adjust based on user object
+        suatChieuId: bookingState.suat_chieu_id,
+        khuyenMaiId: selectedPromo?.id,
+        gheNgoiIds: bookingState.selected_seats,
+        services: bookingState.selected_services.map(s => {
+          const dv = services.find(d => d.id === s.id);
+          return {
+            dichVuId: s.id,
+            soLuong: s.quantity,
+            donGia: dv?.giaBan || 0
+          };
+        }),
+        tongTienBanDau: calculateSubtotal(),
+        soTienGiam: calculateDiscount() + calculatePointsDiscount(),
+        tongTienThanhToan: calculateTotal(),
+        diemThuongSuDung: usePoints ? user.diem_tich_luy : 0
+      };
+
+      const res = await fetch(`${API}/hoa-don/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        alert('Thanh toán thành công! ' + json.message);
+        clearBooking();
+        navigate('/profile');
+      } else {
+        setError(json.message || 'Thanh toán thất bại');
+      }
+    } catch (err) {
+      console.error('Payment error:', err);
+      setError('Đã có lỗi xảy ra khi xử lý thanh toán');
+    }
   };
+
+  if (loading) {
+    return (
+      <Container className="py-5 text-center">
+        <Spinner animation="border" variant="danger" />
+      </Container>
+    );
+  }
 
   return (
     <Container className="py-4">
@@ -92,6 +173,12 @@ export default function CheckoutPage() {
         <i className="bi bi-credit-card me-2"></i>
         Thanh toán
       </h2>
+
+      {error && (
+        <Alert variant="danger" onClose={() => setError(null)} dismissible>
+          {error}
+        </Alert>
+      )}
 
       <Row>
         <Col lg={8}>
@@ -105,15 +192,15 @@ export default function CheckoutPage() {
             </Card.Header>
             <Card.Body>
               <Row>
-                {dichVuData.slice(0, 6).map(service => {
-                  const selected = selectedServices.find(s => s.id === service.id);
+                {services.map(service => {
+                  const selected = bookingState.selected_services.find(s => s.id === service.id);
                   return (
                     <Col md={6} key={service.id} className="mb-3">
                       <Card className="h-100">
                         <Row className="g-0">
                           <Col xs={4}>
                             <img
-                              src={service.hinh_anh || ''}
+                              src={service.hinhAnh || 'https://via.placeholder.com/100x100?text=Service'}
                               alt={service.ten}
                               className="img-fluid rounded-start"
                               style={{ height: '100%', objectFit: 'cover' }}
@@ -123,7 +210,7 @@ export default function CheckoutPage() {
                             <Card.Body className="p-2">
                               <Card.Title className="h6">{service.ten}</Card.Title>
                               <div className="text-danger fw-bold mb-2">
-                                {formatCurrency(service.gia_ban)}
+                                {formatCurrency(service.giaBan)}
                               </div>
                               <div className="d-flex gap-1">
                                 <Button
@@ -189,7 +276,7 @@ export default function CheckoutPage() {
                 </div>
               </Form.Group>
 
-              {promoCode && khuyenMaiData.find(k => k.ma_code === promoCode) && (
+              {promoCode && promotions.find(k => k.maCode === promoCode) && (
                 <Alert variant="success" className="mt-3 mb-0">
                   <i className="bi bi-check-circle me-2"></i>
                   Áp dụng mã thành công! Giảm {formatCurrency(calculateDiscount())}
@@ -199,16 +286,16 @@ export default function CheckoutPage() {
               <div className="mt-3">
                 <small className="text-muted">Mã khuyến mãi có sẵn:</small>
                 <div className="d-flex gap-2 mt-2 flex-wrap">
-                  {khuyenMaiData.map(promo => (
+                  {promotions.map(promo => (
                     <Badge
                       key={promo.id}
                       bg="light"
                       text="dark"
                       className="p-2 cursor-pointer"
                       style={{ cursor: 'pointer' }}
-                      onClick={() => setPromoCode(promo.ma_code)}
+                      onClick={() => setPromoCode(promo.maCode)}
                     >
-                      {promo.ma_code} - Giảm {promo.phan_tram_giam}%
+                      {promo.maCode} - Giảm {promo.phanTramGiam}%
                     </Badge>
                   ))}
                 </div>
@@ -296,9 +383,9 @@ export default function CheckoutPage() {
             </Card.Header>
             <Card.Body>
               <div className="mb-3">
-                <h6>{movie?.ten}</h6>
+                <h6>{showtime?.tenPhim}</h6>
                 <small className="text-muted">
-                  {showtime?.thoi_gian_bat_dau.toLocaleString('vi-VN')}
+                  {showtime && new Date(showtime.thoiGianBatDau).toLocaleString('vi-VN')}
                 </small>
               </div>
 
@@ -312,7 +399,7 @@ export default function CheckoutPage() {
                   </div>
                 </ListGroup.Item>
 
-                {selectedServices.length > 0 && (
+                {bookingState.selected_services.length > 0 && (
                   <ListGroup.Item className="px-0">
                     <div className="d-flex justify-content-between">
                       <span>Dịch vụ F&B</span>

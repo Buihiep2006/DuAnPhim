@@ -19,7 +19,7 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: any) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -47,6 +47,7 @@ export default function RegisterPage() {
       const success = await register({
         ho_ten: formData.ho_ten,
         email: formData.email,
+        mat_khau: formData.mat_khau,
         so_dien_thoai: formData.so_dien_thoai,
         ngay_sinh: formData.ngay_sinh ? new Date(formData.ngay_sinh) : null,
         gioi_tinh: formData.gioi_tinh

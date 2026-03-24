@@ -1,52 +1,120 @@
-import React, { useState } from 'react';
-import { Row, Col, Card, Table, Badge, ProgressBar } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Row, Col, Card, Table, Badge } from 'react-bootstrap';
 import { 
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 
+const API = 'http://localhost:9999/api/admin';
+
 const AdminDashboard: React.FC = () => {
-  // Mock data for charts
-  const revenueData = [
-    { month: 'T1', revenue: 125000000, tickets: 1200 },
-    { month: 'T2', revenue: 158000000, tickets: 1580 },
-    { month: 'T3', revenue: 172000000, tickets: 1650 },
-    { month: 'T4', revenue: 145000000, tickets: 1420 },
-    { month: 'T5', revenue: 198000000, tickets: 1890 },
-    { month: 'T6', revenue: 215000000, tickets: 2100 },
-  ];
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    totalTickets: 0,
+    totalUsers: 0,
+    activeMovies: 0
+  });
 
-  const movieStats = [
-    { name: 'Đang chiếu', value: 12, color: '#28a745' },
-    { name: 'Sắp chiếu', value: 8, color: '#ffc107' },
-    { name: 'Kết thúc', value: 15, color: '#6c757d' },
-  ];
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [topMovies, setTopMovies] = useState<any[]>([]);
+  const [movieStats, setMovieStats] = useState<any[]>([]);
+  const [revenueData, setRevenueData] = useState<any[]>([]);
 
-  const topMovies = [
-    { id: 1, title: 'Avatar 3', tickets: 2850, revenue: 285000000, rating: 9.2 },
-    { id: 2, title: 'Fast & Furious 11', tickets: 2340, revenue: 234000000, rating: 8.8 },
-    { id: 3, title: 'Doraemon: Nobita và...', tickets: 1980, revenue: 198000000, rating: 8.5 },
-    { id: 4, title: 'Conan: Tàu ngầm sắt', tickets: 1750, revenue: 175000000, rating: 9.0 },
-    { id: 5, title: 'One Piece Film Red', tickets: 1620, revenue: 162000000, rating: 8.9 },
-  ];
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const recentActivities = [
-    { id: 1, user: 'Nguyễn Văn A', action: 'Đặt vé Avatar 3', time: '5 phút trước', type: 'booking' },
-    { id: 2, user: 'Admin', action: 'Thêm phim mới', time: '15 phút trước', type: 'movie' },
-    { id: 3, user: 'Trần Thị B', action: 'Hủy đặt vé', time: '25 phút trước', type: 'cancel' },
-    { id: 4, user: 'Admin', action: 'Cập nhật lịch chiếu', time: '1 giờ trước', type: 'showtime' },
-    { id: 5, user: 'Lê Văn C', action: 'Thanh toán thành công', time: '2 giờ trước', type: 'payment' },
-  ];
+  const fetchDashboardData = async () => {
+    try {
+      const [phimRes, khRes, hdRes] = await Promise.all([
+        fetch(`${API}/phim`),
+        fetch(`${API}/khach-hang`),
+        fetch(`${API}/hoa-don`)
+      ]);
+      
+      const [phimJson, khJson, hdJson] = await Promise.all([
+        phimRes.json(), khRes.json(), hdRes.json()
+      ]);
 
-  const stats = {
-    totalRevenue: 1013000000,
-    revenueGrowth: 12.5,
-    totalTickets: 9840,
-    ticketGrowth: 8.3,
-    totalUsers: 5420,
-    userGrowth: 15.2,
-    activeMovies: 12,
-    movieGrowth: -5.0,
+      const movies = phimJson.data || [];
+      const customers = khJson.data || [];
+      const invoices = hdJson.data || [];
+
+      // Calculate Stats
+      const paidInvoices = invoices.filter((i: any) => i.trangThai === 1);
+      const today = new Date();
+      
+      const computedMovieStatus = movies.map((m: any) => {
+        let status = 0; // Sắp chiếu
+        if (m.ngayCongChieu && new Date(m.ngayCongChieu) <= today && (!m.ngayKetThuc || new Date(m.ngayKetThuc) >= today)) status = 1; // Đang chiếu
+        if (m.ngayKetThuc && new Date(m.ngayKetThuc) < today) status = 2; // Đã kết thúc
+        return { ...m, computedStatus: status };
+      });
+
+      const activeMoviesCount = computedMovieStatus.filter((m: any) => m.computedStatus === 1).length;
+      const totalRev = paidInvoices.reduce((sum: number, inv: any) => sum + (inv.tongTienThanhToan || 0), 0);
+      
+      setStats({
+        totalRevenue: totalRev,
+        totalTickets: paidInvoices.length, // approximation: 1 invoice = ~1 ticket/booking
+        totalUsers: customers.length,
+        activeMovies: activeMoviesCount
+      });
+
+      // Recent Activities (Latest 5 invoices)
+      const sortedInvoices = [...invoices].sort((a, b) => new Date(b.thoiGianTao).getTime() - new Date(a.thoiGianTao).getTime()).slice(0, 5);
+      setRecentActivities(sortedInvoices.map((inv: any, idx: number) => ({
+        id: inv.id || idx,
+        user: inv.tenKhachHang || 'Khách hàng',
+        action: inv.trangThai === 1 ? 'Thanh toán thành công' : inv.trangThai === 0 ? 'Chờ thanh toán' : 'Hủy vé',
+        time: inv.thoiGianTao ? new Date(inv.thoiGianTao).toLocaleString('vi-VN') : 'N/A',
+        type: inv.trangThai === 1 ? 'payment' : inv.trangThai === 0 ? 'booking' : 'cancel'
+      })));
+
+      // Pie Chart Data
+      setMovieStats([
+        { name: 'Sắp chiếu', value: computedMovieStatus.filter((m: any) => m.computedStatus === 0).length, color: '#ffc107' },
+        { name: 'Đang chiếu', value: activeMoviesCount, color: '#28a745' },
+        { name: 'Kết thúc', value: computedMovieStatus.filter((m: any) => m.computedStatus === 2).length, color: '#6c757d' }
+      ].filter(item => item.value > 0));
+
+      // Top Movies (Mock computation, as we don't have direct ticket-to-movie mapping right now without ChiTietHoaDon)
+      // Displaying first 5 movies
+      setTopMovies(computedMovieStatus.slice(0, 5).map((m: any, idx: number) => ({
+        id: m.id,
+        title: m.ten,
+        tickets: Math.floor(Math.random() * 100) + 10, // still a bit of mock data just to not crash the view
+        revenue: Math.floor(Math.random() * 10000000) + 1000000,
+        rating: 4.5 + (0.1 * idx)
+      })));
+
+      // Revenue Data (group by month, real aggregation)
+      const revData = [];
+      const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+      const todayDate = new Date();
+      
+      for(let i=5; i>=0; i--) {
+        const d = new Date(todayDate.getFullYear(), todayDate.getMonth() - i, 1);
+        const mIdx = d.getMonth();
+        const year = d.getFullYear();
+        
+        const monthInvoices = paidInvoices.filter((inv: any) => {
+          const invDate = new Date(inv.thoiGianTao);
+          return invDate.getMonth() === mIdx && invDate.getFullYear() === year;
+        });
+        
+        const mRev = monthInvoices.reduce((sum: number, inv: any) => sum + (inv.tongTienThanhToan || 0), 0);
+        revData.push({ 
+          month: months[mIdx], 
+          revenue: mRev, 
+          tickets: monthInvoices.length 
+        });
+      }
+      setRevenueData(revData);
+
+    } catch (e) {
+      console.error('Error fetching dashboard data:', e);
+    }
   };
 
   const getActivityIcon = (type: string) => {
@@ -62,11 +130,10 @@ const AdminDashboard: React.FC = () => {
 
   const getActivityColor = (type: string) => {
     switch (type) {
-      case 'booking': return 'success';
-      case 'movie': return 'primary';
+      case 'booking': return 'warning';
+      case 'payment': return 'success';
       case 'cancel': return 'danger';
-      case 'showtime': return 'warning';
-      case 'payment': return 'info';
+      case 'movie': return 'primary';
       default: return 'secondary';
     }
   };
@@ -84,25 +151,16 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <Row className="g-4 mb-4">
         <Col md={3}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
                 <div>
-                  <p className="text-muted mb-1 small">Doanh thu tháng này</p>
-                  <h3 className="mb-2 fw-bold">{(stats.totalRevenue / 1000000).toFixed(0)}M</h3>
-                  <div className="d-flex align-items-center">
-                    <i className={`bi bi-arrow-${stats.revenueGrowth > 0 ? 'up' : 'down'} me-1 text-${stats.revenueGrowth > 0 ? 'success' : 'danger'}`}></i>
-                    <small className={`text-${stats.revenueGrowth > 0 ? 'success' : 'danger'}`}>
-                      {Math.abs(stats.revenueGrowth)}% so với tháng trước
-                    </small>
-                  </div>
+                  <p className="text-muted mb-1 small">Tổng doanh thu</p>
+                  <h3 className="mb-2 fw-bold">{(stats.totalRevenue / 1000000).toFixed(1)}M</h3>
                 </div>
-                <div className="bg-success bg-opacity-10 rounded p-3">
-                  <i className="bi bi-currency-dollar fs-4 text-success"></i>
-                </div>
+                <div className="bg-success bg-opacity-10 rounded p-3"><i className="bi bi-currency-dollar fs-4 text-success"></i></div>
               </div>
             </Card.Body>
           </Card>
@@ -113,18 +171,10 @@ const AdminDashboard: React.FC = () => {
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
                 <div>
-                  <p className="text-muted mb-1 small">Vé đã bán</p>
+                  <p className="text-muted mb-1 small">Hóa đơn đã thanh toán</p>
                   <h3 className="mb-2 fw-bold">{stats.totalTickets.toLocaleString('vi-VN')}</h3>
-                  <div className="d-flex align-items-center">
-                    <i className={`bi bi-arrow-${stats.ticketGrowth > 0 ? 'up' : 'down'} me-1 text-${stats.ticketGrowth > 0 ? 'success' : 'danger'}`}></i>
-                    <small className={`text-${stats.ticketGrowth > 0 ? 'success' : 'danger'}`}>
-                      {Math.abs(stats.ticketGrowth)}% so với tháng trước
-                    </small>
-                  </div>
                 </div>
-                <div className="bg-primary bg-opacity-10 rounded p-3">
-                  <i className="bi bi-ticket-perforated fs-4 text-primary"></i>
-                </div>
+                <div className="bg-primary bg-opacity-10 rounded p-3"><i className="bi bi-receipt fs-4 text-primary"></i></div>
               </div>
             </Card.Body>
           </Card>
@@ -135,18 +185,10 @@ const AdminDashboard: React.FC = () => {
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
                 <div>
-                  <p className="text-muted mb-1 small">Người dùng</p>
+                  <p className="text-muted mb-1 small">Khách hàng</p>
                   <h3 className="mb-2 fw-bold">{stats.totalUsers.toLocaleString('vi-VN')}</h3>
-                  <div className="d-flex align-items-center">
-                    <i className={`bi bi-arrow-${stats.userGrowth > 0 ? 'up' : 'down'} me-1 text-${stats.userGrowth > 0 ? 'success' : 'danger'}`}></i>
-                    <small className={`text-${stats.userGrowth > 0 ? 'success' : 'danger'}`}>
-                      {Math.abs(stats.userGrowth)}% so với tháng trước
-                    </small>
-                  </div>
                 </div>
-                <div className="bg-warning bg-opacity-10 rounded p-3">
-                  <i className="bi bi-people fs-4 text-warning"></i>
-                </div>
+                <div className="bg-warning bg-opacity-10 rounded p-3"><i className="bi bi-people fs-4 text-warning"></i></div>
               </div>
             </Card.Body>
           </Card>
@@ -159,47 +201,27 @@ const AdminDashboard: React.FC = () => {
                 <div>
                   <p className="text-muted mb-1 small">Phim đang chiếu</p>
                   <h3 className="mb-2 fw-bold">{stats.activeMovies}</h3>
-                  <div className="d-flex align-items-center">
-                    <i className={`bi bi-arrow-${stats.movieGrowth > 0 ? 'up' : 'down'} me-1 text-${stats.movieGrowth > 0 ? 'success' : 'danger'}`}></i>
-                    <small className={`text-${stats.movieGrowth > 0 ? 'success' : 'danger'}`}>
-                      {Math.abs(stats.movieGrowth)}% so với tháng trước
-                    </small>
-                  </div>
                 </div>
-                <div className="bg-danger bg-opacity-10 rounded p-3">
-                  <i className="bi bi-film fs-4 text-danger"></i>
-                </div>
+                <div className="bg-danger bg-opacity-10 rounded p-3"><i className="bi bi-film fs-4 text-danger"></i></div>
               </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* Charts Row */}
       <Row className="g-4 mb-4">
         <Col lg={8}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Body>
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="mb-0 fw-semibold">Doanh thu 6 tháng gần đây</h5>
-                <Badge bg="success">+12.5%</Badge>
-              </div>
+              <h5 className="mb-3 fw-semibold">Doanh thu 6 tháng gần đây</h5>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={revenueData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip 
-                    formatter={(value: any) => `${(value / 1000000).toFixed(0)}M VND`}
-                  />
+                  <Tooltip formatter={(value: any) => `${(value / 1000000).toFixed(1)}M VND`} />
                   <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="#dc3545" 
-                    strokeWidth={3}
-                    name="Doanh thu"
-                  />
+                  <Line type="monotone" dataKey="revenue" stroke="#dc3545" strokeWidth={3} name="Doanh thu" />
                 </LineChart>
               </ResponsiveContainer>
             </Card.Body>
@@ -209,22 +231,11 @@ const AdminDashboard: React.FC = () => {
         <Col lg={4}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Body>
-              <h5 className="mb-3 fw-semibold">Phân loại phim</h5>
+              <h5 className="mb-3 fw-semibold">Trạng thái Phim</h5>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
-                  <Pie
-                    data={movieStats}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {movieStats.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
+                  <Pie data={movieStats} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} outerRadius={80} fill="#8884d8" dataKey="value">
+                    {movieStats.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
                   <Tooltip />
                 </PieChart>
@@ -234,72 +245,43 @@ const AdminDashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Tables Row */}
       <Row className="g-4">
         <Col lg={7}>
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm h-100">
             <Card.Body>
-              <h5 className="mb-3 fw-semibold">Top 5 phim bán chạy nhất</h5>
-              <Table hover responsive className="mb-0">
-                <thead className="bg-light">
-                  <tr>
-                    <th>Phim</th>
-                    <th className="text-center">Vé đã bán</th>
-                    <th className="text-end">Doanh thu</th>
-                    <th className="text-center">Đánh giá</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topMovies.map((movie) => (
-                    <tr key={movie.id}>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <div className="bg-danger bg-opacity-10 rounded p-2 me-2">
-                            <i className="bi bi-film text-danger"></i>
-                          </div>
-                          <span className="fw-semibold">{movie.title}</span>
-                        </div>
-                      </td>
-                      <td className="text-center">
-                        <Badge bg="primary">{movie.tickets.toLocaleString('vi-VN')}</Badge>
-                      </td>
-                      <td className="text-end fw-semibold">
-                        {(movie.revenue / 1000000).toFixed(0)}M
-                      </td>
-                      <td className="text-center">
-                        <div className="d-flex align-items-center justify-content-center">
-                          <i className="bi bi-star-fill text-warning me-1"></i>
-                          <span className="fw-semibold">{movie.rating}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+              <h5 className="mb-3 fw-semibold">Danh sách Phim</h5>
+              <div className="table-responsive">
+                <Table hover className="mb-0">
+                  <thead className="bg-light">
+                    <tr><th>Phim</th><th className="text-center">Trạng thái tham khảo</th></tr>
+                  </thead>
+                  <tbody>
+                    {topMovies.map((movie) => (
+                      <tr key={movie.id}>
+                        <td><div className="d-flex align-items-center"><div className="bg-danger bg-opacity-10 rounded p-2 me-2"><i className="bi bi-film text-danger"></i></div><span className="fw-semibold">{movie.title}</span></div></td>
+                        <td className="text-center"><Badge bg="info">Trong thư viện</Badge></td>
+                      </tr>
+                    ))}
+                    {topMovies.length === 0 && <tr><td colSpan={2} className="text-center text-muted">Chưa có dữ liệu</td></tr>}
+                  </tbody>
+                </Table>
+              </div>
             </Card.Body>
           </Card>
         </Col>
 
         <Col lg={5}>
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm h-100">
             <Card.Body>
-              <h5 className="mb-3 fw-semibold">Hoạt động gần đây</h5>
+              <h5 className="mb-3 fw-semibold">Hoạt động Hóa đơn gần đây</h5>
               <div style={{ maxHeight: 360, overflowY: 'auto' }}>
                 {recentActivities.map((activity) => (
                   <div key={activity.id} className="d-flex align-items-start mb-3 pb-3 border-bottom">
-                    <div className={`bg-${getActivityColor(activity.type)} bg-opacity-10 rounded p-2 me-3`}>
-                      <i className={`bi ${getActivityIcon(activity.type)} text-${getActivityColor(activity.type)}`}></i>
-                    </div>
-                    <div className="flex-grow-1">
-                      <div className="fw-semibold">{activity.user}</div>
-                      <div className="text-muted small">{activity.action}</div>
-                      <div className="text-muted small">
-                        <i className="bi bi-clock me-1"></i>
-                        {activity.time}
-                      </div>
-                    </div>
+                    <div className={`bg-${getActivityColor(activity.type)} bg-opacity-10 rounded p-2 me-3`}><i className={`bi ${getActivityIcon(activity.type)} text-${getActivityColor(activity.type)}`}></i></div>
+                    <div className="flex-grow-1"><div className="fw-semibold">{activity.user}</div><div className="text-muted small">{activity.action}</div><div className="text-muted small"><i className="bi bi-clock me-1"></i>{activity.time}</div></div>
                   </div>
                 ))}
+                {recentActivities.length === 0 && <div className="text-center text-muted">Chưa có hoạt động</div>}
               </div>
             </Card.Body>
           </Card>

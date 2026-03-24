@@ -24,9 +24,10 @@ public class PhimResponse {
     private Integer trangThai;
     private LocalDateTime ngayTao;
     
-    // Names for display in frontend
+    // Names and IDs for display in frontend
     private String phanLoaiDoTuoi;
     private List<String> theLoai;
+    private List<UUID> theLoaiIds;
     private List<String> daoDien;
     private List<String> dienVien;
     private List<String> ngonNgu;

@@ -26,7 +26,7 @@ public class VaiTroController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<VaiTroResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<VaiTroResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,14 @@ public class VaiTroController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<VaiTroResponse>> update(@PathVariable UUID id, @Valid @RequestBody VaiTroRequest request) {
+    public ResponseEntity<ApiResponse<VaiTroResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody VaiTroRequest request) {
         return ResponseEntity.ok(ApiResponse.success(service.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
     }
 }
+

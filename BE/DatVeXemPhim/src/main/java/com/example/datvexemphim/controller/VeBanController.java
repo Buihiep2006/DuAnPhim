@@ -26,7 +26,7 @@ public class VeBanController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<VeBanResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<VeBanResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,19 @@ public class VeBanController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<VeBanResponse>> update(@PathVariable UUID id, @Valid @RequestBody VeBanRequest request) {
+    public ResponseEntity<ApiResponse<VeBanResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody VeBanRequest request) {
         return ResponseEntity.ok(ApiResponse.success(service.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
     }
+
+    @GetMapping("/suat-chieu/{suatChieuId}")
+    public ResponseEntity<ApiResponse<java.util.List<VeBanResponse>>> getBySuatChieuId(@PathVariable("suatChieuId") UUID suatChieuId) {
+        return ResponseEntity.ok(ApiResponse.success(service.getBySuatChieuId(suatChieuId), "Lấy danh sách theo suất chiếu thành công"));
+    }
 }
+

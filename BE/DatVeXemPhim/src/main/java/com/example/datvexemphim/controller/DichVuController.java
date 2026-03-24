@@ -26,7 +26,7 @@ public class DichVuController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<DichVuResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<DichVuResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,14 @@ public class DichVuController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<DichVuResponse>> update(@PathVariable UUID id, @Valid @RequestBody DichVuRequest request) {
+    public ResponseEntity<ApiResponse<DichVuResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody DichVuRequest request) {
         return ResponseEntity.ok(ApiResponse.success(service.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
     }
 }
+

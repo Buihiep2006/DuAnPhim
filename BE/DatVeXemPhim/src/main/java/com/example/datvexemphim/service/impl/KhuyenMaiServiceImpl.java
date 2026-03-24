@@ -77,7 +77,8 @@ public class KhuyenMaiServiceImpl implements KhuyenMaiService {
 
     @Override
     public void delete(UUID id) {
-        if (!repository.existsById(id)) throw new ResourceNotFoundException("Not found: " + id);
-        repository.deleteById(id);
+        KhuyenMai entity = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Not found: " + id));
+        entity.setTrangThai(3);
+        repository.save(entity);
     }
 }

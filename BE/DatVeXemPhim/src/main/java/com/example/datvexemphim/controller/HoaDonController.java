@@ -26,7 +26,7 @@ public class HoaDonController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<HoaDonResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<HoaDonResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,23 @@ public class HoaDonController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<HoaDonResponse>> update(@PathVariable UUID id, @Valid @RequestBody HoaDonRequest request) {
+    public ResponseEntity<ApiResponse<HoaDonResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody HoaDonRequest request) {
         return ResponseEntity.ok(ApiResponse.success(service.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
+    }
+
+    @PostMapping("/checkout")
+    public ResponseEntity<ApiResponse<HoaDonResponse>> checkout(@Valid @RequestBody com.example.datvexemphim.dto.request.BookingRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(service.checkout(request), "Thanh toán thành công"));
+    }
+
+    @GetMapping("/khach-hang/{khachHangId}")
+    public ResponseEntity<ApiResponse<java.util.List<com.example.datvexemphim.dto.response.BookingHistoryResponse>>> getBookingHistory(@PathVariable("khachHangId") java.util.UUID khachHangId) {
+        return ResponseEntity.ok(ApiResponse.success(service.getBookingHistory(khachHangId), "Lấy lịch sử đặt vé thành công"));
     }
 }

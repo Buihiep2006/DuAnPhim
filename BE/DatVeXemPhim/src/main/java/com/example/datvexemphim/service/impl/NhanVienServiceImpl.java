@@ -19,10 +19,21 @@ public class NhanVienServiceImpl implements NhanVienService {
     @Autowired
     private NhanVienRepository repository;
 
+    @Autowired
+    private com.example.datvexemphim.repository.VaiTroRepository vaiTroRepository;
+
     private NhanVienResponse mapToResponse(NhanVien entity) {
+        String vaiTroMa = "";
+        if (entity.getVaiTroId() != null) {
+            vaiTroMa = vaiTroRepository.findById(entity.getVaiTroId())
+                    .map(v -> v.getMa())
+                    .orElse("");
+        }
+        
         return NhanVienResponse.builder()
                 .id(entity.getId())
                 .vaiTroId(entity.getVaiTroId())
+                .vaiTroMa(vaiTroMa)
                 .ma(entity.getMa())
                 .hoTen(entity.getHoTen())
                 .email(entity.getEmail())
@@ -85,5 +96,17 @@ public class NhanVienServiceImpl implements NhanVienService {
     public void delete(UUID id) {
         if (!repository.existsById(id)) throw new ResourceNotFoundException("Not found: " + id);
         repository.deleteById(id);
+    }
+
+    @Override
+    public NhanVienResponse login(String email, String matKhau) {
+        NhanVien nhanVien = repository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Email không tồn tại"));
+        
+        if (!nhanVien.getMatKhau().equals(matKhau)) {
+            throw new RuntimeException("Mật khẩu không đúng");
+        }
+        
+        return mapToResponse(nhanVien);
     }
 }

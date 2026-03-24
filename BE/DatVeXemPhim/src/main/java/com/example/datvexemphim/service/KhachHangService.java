@@ -12,4 +12,5 @@ public interface KhachHangService {
     KhachHangResponse create(KhachHangRequest request);
     KhachHangResponse update(UUID id, KhachHangRequest request);
     void delete(UUID id);
+    KhachHangResponse login(String email, String matKhau);
 }

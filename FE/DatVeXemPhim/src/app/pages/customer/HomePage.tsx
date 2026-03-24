@@ -1,23 +1,90 @@
 import { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Badge, Carousel, Form, Nav } from 'react-bootstrap';
 import { Link, useSearchParams } from 'react-router-dom';
-import { phimData, theLoaiPhimData, rapChieuData } from '../../../data/mockData';
-import { PhimWithDetails } from '../../../types/database.types';
+import { PhimWithDetails, TheLoaiPhim, RapChieu } from '../../../types/database.types';
+
+const API = 'http://localhost:9999/api/admin';
 
 export default function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [filteredMovies, setFilteredMovies] = useState<PhimWithDetails[]>(phimData);
+  const [movies, setMovies] = useState<PhimWithDetails[]>([]);
+  const [genres, setGenres] = useState<TheLoaiPhim[]>([]);
+  const [cinemas, setCinemas] = useState<RapChieu[]>([]);
+  
+  const [filteredMovies, setFilteredMovies] = useState<PhimWithDetails[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedCinema, setSelectedCinema] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'showing');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const getPosterUrl = (url?: string | null) => {
+    if (!url) return 'https://via.placeholder.com/300x450?text=No+Poster';
+    if (url.startsWith('http')) return url;
+    // Try to serve from backend if it's a relative path
+    return url;
+  };
+
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      const [phimRes, genreRes, cinemaRes] = await Promise.all([
+        fetch(`${API}/phim`),
+        fetch(`${API}/the-loai`),
+        fetch(`${API}/rap-chieu`)
+      ]);
+
+      const [phimJson, genreJson, cinemaJson] = await Promise.all([
+        phimRes.json(), genreRes.json(), cinemaRes.json()
+      ]);
+
+      if (phimJson.data) {
+        const mappedMovies: PhimWithDetails[] = phimJson.data.map((m: any) => ({
+          ...m,
+          id: m.id,
+          ma: m.ma,
+          ten: m.ten,
+          thoi_luong: m.thoiLuong,
+          ngay_cong_chieu: m.ngayCongChieu,
+          ngay_ket_thuc: m.ngayKetThuc,
+          hinh_anh_poster: m.hinhAnhPoster,
+          hinh_anh_banner: m.hinhAnhBanner || m.hinhAnhPoster,
+          trailer_url: m.trailerUrl,
+          mo_ta: m.moTa,
+          trang_thai: m.trangThai,
+          phan_loai_do_tuoi: {
+            id: m.phanLoaiDoTuoiId || '',
+            ma: m.phanLoaiDoTuoi || 'G',
+            mo_ta: ''
+          },
+          the_loai_list: m.theLoaiIds?.map((id: string, index: number) => ({
+            id,
+            ten: m.theLoai?.[index] || 'N/A'
+          })) || []
+        }));
+        setMovies(mappedMovies);
+      }
+      
+      setGenres(genreJson.data || []);
+      setCinemas(cinemaJson.data || []);
+    } catch (error) {
+      console.error('Error fetching home data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     filterMovies();
-  }, [selectedGenre, selectedCinema, activeTab]);
+  }, [selectedGenre, selectedCinema, activeTab, movies]);
 
   const filterMovies = () => {
-    let filtered = phimData.filter(movie => {
-      // Filter by status
+    let filtered = movies.filter(movie => {
+      // Filter by status (0: Upcoming, 1: Now Showing)
+      // Backend: 1=Showing, 0=Upcoming
       if (activeTab === 'showing' && movie.trang_thai !== 1) return false;
       if (activeTab === 'upcoming' && movie.trang_thai !== 0) return false;
 
@@ -44,12 +111,12 @@ export default function HomePage() {
     <>
       {/* Hero Carousel */}
       <Carousel className="mb-4">
-        {phimData.slice(0, 3).map(movie => (
+        {movies.slice(0, 3).map(movie => (
           <Carousel.Item key={movie.id}>
             <div
               style={{
                 height: '500px',
-                backgroundImage: `url(${movie.hinh_anh_banner})`,
+                backgroundImage: `url(${getPosterUrl(movie.hinh_anh_banner)})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 position: 'relative'
@@ -89,6 +156,13 @@ export default function HomePage() {
       </Carousel>
 
       <Container className="py-4">
+        {loading && (
+          <div className="text-center py-5">
+            <div className="spinner-border text-danger" role="status">
+              <span className="visually-hidden">Đang tải...</span>
+            </div>
+          </div>
+        )}
         {/* Tabs & Filters */}
         <div className="bg-light p-3 rounded mb-4">
           <Row className="align-items-center">
@@ -128,7 +202,7 @@ export default function HomePage() {
                     onChange={(e) => setSelectedGenre(e.target.value)}
                   >
                     <option value="all">Tất cả thể loại</option>
-                    {theLoaiPhimData.map(genre => (
+                    {genres.map(genre => (
                       <option key={genre.id} value={genre.id}>
                         {genre.ten}
                       </option>
@@ -141,7 +215,7 @@ export default function HomePage() {
                     onChange={(e) => setSelectedCinema(e.target.value)}
                   >
                     <option value="all">Tất cả rạp</option>
-                    {rapChieuData.map(cinema => (
+                    {cinemas.map(cinema => (
                       <option key={cinema.id} value={cinema.id}>
                         {cinema.ten}
                       </option>
@@ -174,7 +248,7 @@ export default function HomePage() {
                   <div style={{ position: 'relative' }}>
                     <Card.Img
                       variant="top"
-                      src={movie.hinh_anh_poster}
+                      src={getPosterUrl(movie.hinh_anh_poster)}
                       alt={movie.ten}
                       style={{ height: '350px', objectFit: 'cover' }}
                     />
@@ -214,7 +288,7 @@ export default function HomePage() {
                       </div>
                     )}
                     <div className="mt-auto">
-                      <Link to={`/movies/${movie.id}`} className="text-decoration-none">
+                      <Link to={`/movies/${movie.id || ''}`} className="text-decoration-none">
                         <Button variant="danger" size="sm" className="w-100">
                           {movie.trang_thai === 1 ? 'Đặt vé' : 'Xem chi tiết'}
                         </Button>

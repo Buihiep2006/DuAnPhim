@@ -1,20 +1,61 @@
-import { Container, Row, Col, Card, Badge, ListGroup, Nav, Tab, Button, Form } from 'react-bootstrap';
+import React from 'react';
+import { Container, Row, Col, Card, Badge, ListGroup, Nav, Tab, Button, Form, Table, Spinner } from 'react-bootstrap';
 import { useAuth } from '../../contexts/AuthContext';
 import { hangThanhVienData } from '../../../data/mockData';
 
+interface BookingHistory {
+  id: string;
+  maHoaDon: string;
+  thoiGianTao: string;
+  tongTienThanhToan: number;
+  trangThai: number;
+  tenPhim: string;
+  thoiGianBatDau: string;
+  tenRap: string;
+  tenPhong: string;
+  danhSachGhe: string[];
+  danhSachDichVu: string[];
+}
+
 export default function ProfilePage() {
   const { user, logout } = useAuth();
+  const [history, setHistory] = React.useState<BookingHistory[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (user?.id) {
+      setError(null);
+      fetch(`http://localhost:9999/api/admin/hoa-don/khach-hang/${user.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setHistory(data.data);
+          } else {
+            setError(data.message || 'Lỗi lấy lịch sử đặt vé');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          setError('Không thể kết nối đến máy chủ');
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [user?.id]);
 
   if (!user) {
     return null;
   }
 
-  const hangThanhVien = hangThanhVienData.find(h => h.id === user.hang_thanh_vien_id);
-  const nextHang = hangThanhVienData.find(h => h.diem_toi_thieu > user.diem_tich_luy);
+  const hangThanhVien = hangThanhVienData.find(h => h.id === user.hang_thanh_vien_id || h.id === (user as any).hangThanhVienId);
+  const userDiem = user.diem_tich_luy ?? (user as any).diemTichLuy ?? 0;
+  const nextHang = hangThanhVienData.find(h => h.diem_toi_thieu > userDiem);
 
   const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('vi-VN') + 'đ';
+    return (amount || 0).toLocaleString('vi-VN') + 'đ';
   };
+
+  const displayName = user.ho_ten || (user as any).hoTen || 'Thành viên';
 
   return (
     <Container className="py-4">
@@ -26,7 +67,7 @@ export default function ProfilePage() {
                 {user.hinh_anh_dai_dien ? (
                   <img
                     src={user.hinh_anh_dai_dien}
-                    alt={user.ho_ten}
+                    alt={displayName}
                     className="rounded-circle"
                     style={{ width: '120px', height: '120px', objectFit: 'cover' }}
                   />
@@ -35,12 +76,12 @@ export default function ProfilePage() {
                     className="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center mx-auto"
                     style={{ width: '120px', height: '120px', fontSize: '3rem' }}
                   >
-                    {user.ho_ten.charAt(0).toUpperCase()}
+                    {displayName.charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
 
-              <h5>{user.ho_ten}</h5>
+              <h5>{displayName}</h5>
               <p className="text-muted">{user.email}</p>
 
               {hangThanhVien && (
@@ -53,7 +94,7 @@ export default function ProfilePage() {
               <div className="mb-3">
                 <div className="d-flex justify-content-between mb-2">
                   <small>Điểm tích lũy:</small>
-                  <strong className="text-danger">{user.diem_tich_luy} điểm</strong>
+                  <strong className="text-danger">{userDiem} điểm</strong>
                 </div>
                 {nextHang && (
                   <>
@@ -62,7 +103,7 @@ export default function ProfilePage() {
                         className="progress-bar bg-danger"
                         style={{
                           width: `${
-                            (user.diem_tich_luy /
+                            (userDiem /
                               (nextHang.diem_toi_thieu - (hangThanhVien?.diem_toi_thieu || 0))) *
                             100
                           }%`
@@ -70,7 +111,7 @@ export default function ProfilePage() {
                       ></div>
                     </div>
                     <small className="text-muted">
-                      Cần thêm {nextHang.diem_toi_thieu - user.diem_tich_luy} điểm để lên hạng{' '}
+                      Cần thêm {nextHang.diem_toi_thieu - userDiem} điểm để lên hạng{' '}
                       {nextHang.ten}
                     </small>
                   </>
@@ -90,7 +131,7 @@ export default function ProfilePage() {
             <ListGroup variant="flush">
               <ListGroup.Item>
                 <i className="bi bi-gift text-danger me-2"></i>
-                Điểm tích lũy: {formatCurrency(user.diem_tich_luy * 1000)}
+                Điểm tích lũy quy đổi: {formatCurrency(userDiem * 1000)}
               </ListGroup.Item>
               {hangThanhVien && hangThanhVien.ma !== 'BRONZE' && (
                 <ListGroup.Item>
@@ -127,13 +168,65 @@ export default function ProfilePage() {
 
                 <Tab.Content>
                   <Tab.Pane eventKey="history">
-                    <div className="text-center py-5">
-                      <i className="bi bi-ticket-perforated text-muted" style={{ fontSize: '3rem' }}></i>
-                      <p className="text-muted mt-3">Chưa có lịch sử đặt vé</p>
-                      <Button variant="danger" href="/">
-                        Đặt vé ngay
-                      </Button>
-                    </div>
+                    {loading ? (
+                      <div className="text-center py-5">
+                        <Spinner animation="border" variant="danger" />
+                        <p className="mt-2">Đang tải lịch sử...</p>
+                      </div>
+                    ) : error ? (
+                      <div className="text-center py-5 text-danger">
+                        <i className="bi bi-exclamation-triangle" style={{ fontSize: '3rem' }}></i>
+                        <p className="mt-3">{error}</p>
+                        <Button variant="outline-danger" onClick={() => window.location.reload()}>
+                          Thử lại
+                        </Button>
+                      </div>
+                    ) : history.length === 0 ? (
+                      <div className="text-center py-5">
+                        <i className="bi bi-ticket-perforated text-muted" style={{ fontSize: '3rem' }}></i>
+                        <p className="text-muted mt-3">Chưa có lịch sử đặt vé</p>
+                        <Button variant="danger" href="/">
+                          Đặt vé ngay
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="table-responsive">
+                        <Table hover>
+                          <thead>
+                            <tr>
+                              <th>Mã HD</th>
+                              <th>Phim</th>
+                              <th>Rạp / Phòng</th>
+                              <th>Ghế</th>
+                              <th>Thời gian</th>
+                              <th>Tổng tiền</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {history.map(item => (
+                              <tr key={item.id}>
+                                <td><small className="fw-bold">{item.maHoaDon}</small></td>
+                                <td>
+                                  <div className="fw-bold">{item.tenPhim}</div>
+                                  <small className="text-muted">
+                                    {new Date(item.thoiGianBatDau).toLocaleString('vi-VN')}
+                                  </small>
+                                </td>
+                                <td>
+                                  <div>{item.tenRap}</div>
+                                  <small>{item.tenPhong}</small>
+                                </td>
+                                <td>{item.danhSachGhe?.join(', ')}</td>
+                                <td>{new Date(item.thoiGianTao).toLocaleDateString('vi-VN')}</td>
+                                <td className="text-danger fw-bold">
+                                  {item.tongTienThanhToan?.toLocaleString('vi-VN')}đ
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      </div>
+                    )}
                   </Tab.Pane>
 
                   <Tab.Pane eventKey="info">
@@ -142,7 +235,7 @@ export default function ProfilePage() {
                         <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label>Họ tên</Form.Label>
-                            <Form.Control type="text" defaultValue={user.ho_ten} />
+                            <Form.Control type="text" defaultValue={displayName} />
                           </Form.Group>
                         </Col>
                         <Col md={6}>
@@ -157,7 +250,7 @@ export default function ProfilePage() {
                         <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label>Số điện thoại</Form.Label>
-                            <Form.Control type="tel" defaultValue={user.so_dien_thoai || ''} />
+                            <Form.Control type="tel" defaultValue={user.so_dien_thoai || (user as any).soDienThoai || ''} />
                           </Form.Group>
                         </Col>
                         <Col md={6}>
@@ -166,8 +259,8 @@ export default function ProfilePage() {
                             <Form.Control
                               type="date"
                               defaultValue={
-                                user.ngay_sinh
-                                  ? new Date(user.ngay_sinh).toISOString().split('T')[0]
+                                (user.ngay_sinh || (user as any).ngaySinh)
+                                  ? new Date(user.ngay_sinh || (user as any).ngaySinh).toISOString().split('T')[0]
                                   : ''
                               }
                             />
@@ -183,21 +276,21 @@ export default function ProfilePage() {
                             type="radio"
                             label="Nam"
                             name="gender"
-                            defaultChecked={user.gioi_tinh === 0}
+                            defaultChecked={(user.gioi_tinh ?? (user as any).gioiTinh) === 0}
                           />
                           <Form.Check
                             inline
                             type="radio"
                             label="Nữ"
                             name="gender"
-                            defaultChecked={user.gioi_tinh === 1}
+                            defaultChecked={(user.gioi_tinh ?? (user as any).gioiTinh) === 1}
                           />
                           <Form.Check
                             inline
                             type="radio"
                             label="Khác"
                             name="gender"
-                            defaultChecked={user.gioi_tinh === 2}
+                            defaultChecked={(user.gioi_tinh ?? (user as any).gioiTinh) === 2}
                           />
                         </div>
                       </Form.Group>

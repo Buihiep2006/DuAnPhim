@@ -1,7 +1,7 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../styles/bootstrap-custom.css';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthContextProvider } from './contexts/AuthContext';
 import { BookingProvider } from './contexts/BookingContext';
 
 // Customer Pages
@@ -20,7 +20,10 @@ import AdminMovies from './pages/admin/AdminMovies';
 import AdminCategories from './pages/admin/AdminCategories';
 import AdminShowtimes from './pages/admin/AdminShowtimes';
 import AdminCinemas from './pages/admin/AdminCinemas';
-import AdminUsers from './pages/admin/AdminUsers';
+import AdminRooms from './pages/admin/AdminRooms';
+import AdminCustomers from './pages/admin/AdminCustomers';
+import AdminEmployees from './pages/admin/AdminEmployees';
+import AdminInvoices from './pages/admin/AdminInvoices';
 import AdminServices from './pages/admin/AdminServices';
 import AdminPromotions from './pages/admin/AdminPromotions';
 import AdminReports from './pages/admin/AdminReports';
@@ -35,7 +38,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
   return (
-    <AuthProvider>
+    <AuthContextProvider>
       <BookingProvider>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
@@ -82,7 +85,10 @@ export default function App() {
               <Route path="categories" element={<AdminCategories />} />
               <Route path="showtimes" element={<AdminShowtimes />} />
               <Route path="cinemas" element={<AdminCinemas />} />
-              <Route path="users" element={<AdminUsers />} />
+              <Route path="cinemas/:cinemaId/rooms" element={<AdminRooms />} />
+              <Route path="customers" element={<AdminCustomers />} />
+              <Route path="employees" element={<AdminEmployees />} />
+              <Route path="invoices" element={<AdminInvoices />} />
               <Route path="services" element={<AdminServices />} />
               <Route path="promotions" element={<AdminPromotions />} />
               <Route path="reports" element={<AdminReports />} />
@@ -94,6 +100,6 @@ export default function App() {
           </Routes>
         </BrowserRouter>
       </BookingProvider>
-    </AuthProvider>
+    </AuthContextProvider>
   );
 }

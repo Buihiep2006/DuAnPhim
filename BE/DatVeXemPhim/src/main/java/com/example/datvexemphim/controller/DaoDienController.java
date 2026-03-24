@@ -26,7 +26,7 @@ public class DaoDienController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<DaoDienResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<DaoDienResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(daoDienService.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,14 @@ public class DaoDienController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<DaoDienResponse>> update(@PathVariable UUID id, @Valid @RequestBody DaoDienRequest request) {
+    public ResponseEntity<ApiResponse<DaoDienResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody DaoDienRequest request) {
         return ResponseEntity.ok(ApiResponse.success(daoDienService.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         daoDienService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
     }
 }
+

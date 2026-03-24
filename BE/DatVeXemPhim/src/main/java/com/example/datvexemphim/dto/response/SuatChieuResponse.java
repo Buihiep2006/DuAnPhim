@@ -19,4 +19,12 @@ public class SuatChieuResponse {
     private BigDecimal giaVeCoBan;
     private Integer trangThai;
     private LocalDateTime ngayTao;
+    
+    // Display fields
+    private String tenPhim;
+    private String hinhAnhPoster;
+    private String tenPhongChieu;
+    private String tenRapChieu;
+    private String diaChiRapChieu;
+    private String tenDinhDangPhim;
 }

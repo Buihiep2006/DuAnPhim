@@ -26,7 +26,7 @@ public class SuatChieuController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<SuatChieuResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<SuatChieuResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,19 @@ public class SuatChieuController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<SuatChieuResponse>> update(@PathVariable UUID id, @Valid @RequestBody SuatChieuRequest request) {
+    public ResponseEntity<ApiResponse<SuatChieuResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody SuatChieuRequest request) {
         return ResponseEntity.ok(ApiResponse.success(service.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
     }
+
+    @GetMapping("/phim/{phimId}")
+    public ResponseEntity<ApiResponse<java.util.List<SuatChieuResponse>>> getByPhimId(@PathVariable("phimId") UUID phimId) {
+        return ResponseEntity.ok(ApiResponse.success(service.getByPhimId(phimId), "Lấy danh sách theo phim thành công"));
+    }
 }
+

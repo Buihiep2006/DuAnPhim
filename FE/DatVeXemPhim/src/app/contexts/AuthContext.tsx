@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { NguoiDung, VaiTro } from '../../types/database.types';
+import { NguoiDung, VaiTro, AuthProvider } from '../../types/database.types';
 
 interface AuthContextType {
   user: NguoiDung | null;
@@ -14,7 +14,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthContextProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<NguoiDung | null>(null);
 
   useEffect(() => {
@@ -25,32 +25,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const API_ADMIN = 'http://localhost:9999/api/admin';
+
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // TODO: Replace with actual API call
-      // Mock login - check against mock data
-      const mockUser: NguoiDung = {
-        id: '1',
-        hang_thanh_vien_id: '1',
-        ma: 'KH001',
-        ho_ten: 'Nguyễn Văn A',
-        email: email,
-        mat_khau: null,
-        ngay_sinh: new Date('1990-01-01'),
-        gioi_tinh: 0,
-        so_dien_thoai: '0123456789',
-        auth_provider: 'LOCAL',
-        provider_id: null,
-        hinh_anh_dai_dien: null,
-        diem_tich_luy: 500,
-        vai_tro: VaiTro.KHACH_HANG,
-        trang_thai: 1,
-        ngay_tao: new Date()
-      };
-
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      return true;
+      const res = await fetch(`${API_ADMIN}/khach-hang/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, matKhau: password })
+      });
+      const data = await res.json();
+      
+      if (data.success && data.data) {
+        const d = data.data;
+        const userData: NguoiDung = {
+          id: d.id,
+          ma: d.ma,
+          ho_ten: d.hoTen,
+          email: d.email,
+          mat_khau: d.matKhau,
+          ngay_sinh: d.ngaySinh,
+          gioi_tinh: d.gioiTinh,
+          so_dien_thoai: d.soDienThoai,
+          hinh_anh_dai_dien: d.hinhAnh,
+          diem_tich_luy: d.diemTichLuy || 0,
+          hang_thanh_vien_id: d.hangThanhVienId,
+          auth_provider: AuthProvider.LOCAL,
+          provider_id: null,
+          trang_thai: d.trangThai,
+          ngay_tao: d.ngayTao || new Date(),
+          vai_tro: VaiTro.KHACH_HANG
+        };
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('Login error:', error);
       return false;
@@ -59,29 +69,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginAdmin = async (email: string, password: string): Promise<boolean> => {
     try {
-      // TODO: Replace with actual API call
-      const mockAdmin: NguoiDung = {
-        id: 'admin1',
-        hang_thanh_vien_id: null,
-        ma: 'ADMIN001',
-        ho_ten: 'Admin System',
-        email: email,
-        mat_khau: null,
-        ngay_sinh: null,
-        gioi_tinh: null,
-        so_dien_thoai: '0987654321',
-        auth_provider: 'LOCAL',
-        provider_id: null,
-        hinh_anh_dai_dien: null,
-        diem_tich_luy: 0,
-        vai_tro: VaiTro.ADMIN,
-        trang_thai: 1,
-        ngay_tao: new Date()
-      };
-
-      setUser(mockAdmin);
-      localStorage.setItem('user', JSON.stringify(mockAdmin));
-      return true;
+      const res = await fetch(`${API_ADMIN}/nhan-vien/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, matKhau: password })
+      });
+      const data = await res.json();
+      
+      if (data.success && data.data) {
+        const d = data.data;
+        const adminData: NguoiDung = {
+          id: d.id,
+          ma: d.ma,
+          ho_ten: d.hoTen,
+          email: d.email,
+          mat_khau: d.matKhau,
+          ngay_sinh: d.ngaySinh,
+          gioi_tinh: d.gioiTinh,
+          so_dien_thoai: d.soDienThoai,
+          hinh_anh_dai_dien: d.hinhAnh,
+          diem_tich_luy: 0,
+          hang_thanh_vien_id: null,
+          auth_provider: AuthProvider.LOCAL,
+          provider_id: null,
+          trang_thai: d.trangThai,
+          ngay_tao: d.ngayTao || new Date(),
+          vai_tro: d.vaiTroMa === 'ADMIN' ? VaiTro.ADMIN : VaiTro.NHAN_VIEN
+        };
+        setUser(adminData);
+        localStorage.setItem('user', JSON.stringify(adminData));
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('Admin login error:', error);
       return false;
@@ -90,29 +109,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (userData: Partial<NguoiDung>): Promise<boolean> => {
     try {
-      // TODO: Replace with actual API call
-      const newUser: NguoiDung = {
-        id: Date.now().toString(),
-        hang_thanh_vien_id: '1', // Default member tier
-        ma: `KH${Date.now()}`,
-        ho_ten: userData.ho_ten || '',
-        email: userData.email || '',
-        mat_khau: null,
-        ngay_sinh: userData.ngay_sinh || null,
-        gioi_tinh: userData.gioi_tinh || null,
-        so_dien_thoai: userData.so_dien_thoai || null,
-        auth_provider: 'LOCAL',
-        provider_id: null,
-        hinh_anh_dai_dien: null,
-        diem_tich_luy: 0,
-        vai_tro: VaiTro.KHACH_HANG,
-        trang_thai: 1,
-        ngay_tao: new Date()
-      };
-
-      setUser(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      return true;
+      const res = await fetch(`${API_ADMIN}/khach-hang`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hoTen: userData.ho_ten,
+          email: userData.email,
+          matKhau: userData.mat_khau,
+          soDienThoai: userData.so_dien_thoai,
+          ngaySinh: userData.ngay_sinh,
+          gioiTinh: userData.gioi_tinh,
+          trangThai: 1
+        })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        // Automatically login after register
+        return login(userData.email!, userData.mat_khau!);
+      }
+      return false;
     } catch (error) {
       console.error('Register error:', error);
       return false;

@@ -12,4 +12,5 @@ public interface SuatChieuService {
     SuatChieuResponse create(SuatChieuRequest request);
     SuatChieuResponse update(UUID id, SuatChieuRequest request);
     void delete(UUID id);
+    java.util.List<SuatChieuResponse> getByPhimId(UUID phimId);
 }

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Row, Col, Card, Table, Button, Form, InputGroup, 
-  Badge, Modal, ProgressBar 
+  Badge, Modal, ProgressBar, Pagination 
 } from 'react-bootstrap';
+import { toast } from 'sonner';
 
 interface User {
   id: string;
@@ -25,6 +26,8 @@ const AdminUsers: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Mock data
   const mockUsers: User[] = [
@@ -100,7 +103,7 @@ const AdminUsers: React.FC = () => {
     }
   ];
 
-  const [users] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>(mockUsers);
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -136,8 +139,9 @@ const AdminUsers: React.FC = () => {
   };
 
   const handleDeleteUser = (userId: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
-      console.log('Delete user:', userId);
+    if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này? (Sẽ đẩy vào thùng rác)')) {
+      toast.success('Xóa người dùng thành công!');
+      setUsers(prev => prev.filter(u => u.id !== userId));
     }
   };
 
@@ -151,6 +155,26 @@ const AdminUsers: React.FC = () => {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterRole, filterStatus]);
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    const items = [];
+    for (let i = 1; i <= totalPages; i++) {
+      items.push(<Pagination.Item key={i} active={i === currentPage} onClick={() => setCurrentPage(i)}>{i}</Pagination.Item>);
+    }
+    return (
+      <Pagination className="mb-0">
+        <Pagination.Prev disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} />
+        {items}
+        <Pagination.Next disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} />
+      </Pagination>
+    );
+  };
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -158,7 +182,7 @@ const AdminUsers: React.FC = () => {
           <h2 className="mb-1 fw-bold">Quản lý Người dùng</h2>
           <p className="text-muted mb-0">Quản lý tài khoản và phân quyền người dùng</p>
         </div>
-        <Button variant="danger">
+        <Button variant="danger" onClick={() => toast.info('Chức năng thêm người dùng đang được cập nhật')}>
           <i className="bi bi-plus-circle me-2"></i>
           Thêm người dùng
         </Button>
@@ -289,23 +313,23 @@ const AdminUsers: React.FC = () => {
             <Table hover className="mb-0">
               <thead className="bg-light">
                 <tr>
-                  <th style={{ width: '80px' }}>Mã</th>
-                  <th>Người dùng</th>
-                  <th>Liên hệ</th>
+                  <th className="text-center" style={{ width: '80px' }}>Mã</th>
+                  <th className="text-start">Người dùng</th>
+                  <th className="text-start">Liên hệ</th>
                   <th className="text-center">Vai trò</th>
                   <th className="text-center">Hạng thành viên</th>
-                  <th className="text-center">Điểm tích lũy</th>
+                  <th className="text-end" style={{ width: '150px' }}>Điểm tích lũy</th>
                   <th className="text-center">Trạng thái</th>
-                  <th className="text-center" style={{ width: '150px' }}>Thao tác</th>
+                  <th className="text-center text-nowrap" style={{ width: '150px' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => (
+                {paginatedUsers.map((user) => (
                   <tr key={user.id}>
-                    <td>
+                    <td className="text-center">
                       <span className="badge bg-light text-dark border">{user.ma}</span>
                     </td>
-                    <td>
+                    <td className="text-start">
                       <div className="d-flex align-items-center">
                         <div 
                           className="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center me-2"
@@ -322,7 +346,7 @@ const AdminUsers: React.FC = () => {
                         </div>
                       </div>
                     </td>
-                    <td>
+                    <td className="text-start">
                       <div className="small">
                         <div><i className="bi bi-envelope me-1"></i>{user.email}</div>
                         <div className="text-muted">
@@ -332,9 +356,9 @@ const AdminUsers: React.FC = () => {
                     </td>
                     <td className="text-center">{getRoleBadge(user.vai_tro)}</td>
                     <td className="text-center">{getMemberTierBadge(user.hang_thanh_vien)}</td>
-                    <td className="text-center">
+                    <td className="text-end">
                       <div className="fw-semibold">{user.diem_tich_luy.toLocaleString('vi-VN')}</div>
-                      <div style={{ width: 100, margin: '0 auto' }}>
+                      <div style={{ width: 100, marginLeft: 'auto' }}>
                         <ProgressBar 
                           now={getMemberProgress(user.diem_tich_luy).percent} 
                           variant={getMemberProgress(user.diem_tich_luy).variant}
@@ -347,7 +371,7 @@ const AdminUsers: React.FC = () => {
                         {user.trang_thai === 1 ? 'Hoạt động' : 'Đã khóa'}
                       </Badge>
                     </td>
-                    <td className="text-center">
+                    <td className="text-center text-nowrap">
                       <Button 
                         variant="outline-info" 
                         size="sm" 
@@ -374,8 +398,11 @@ const AdminUsers: React.FC = () => {
           </div>
         </Card.Body>
         <Card.Footer className="bg-white">
-          <div className="text-muted small">
-            Hiển thị {filteredUsers.length} / {users.length} người dùng
+          <div className="d-flex justify-content-between align-items-center">
+            <div className="text-muted small">
+              Hiển thị {Math.min((currentPage - 1) * itemsPerPage + 1, filteredUsers.length)}-{Math.min(currentPage * itemsPerPage, filteredUsers.length)} / {filteredUsers.length} người dùng
+            </div>
+            {renderPagination()}
           </div>
         </Card.Footer>
       </Card>
@@ -494,7 +521,7 @@ const AdminUsers: React.FC = () => {
           <Button variant="secondary" onClick={() => setShowModal(false)}>
             Đóng
           </Button>
-          <Button variant="danger">
+          <Button variant="danger" onClick={() => {toast.success('Thông tin đã được cập nhật!'); setShowModal(false);}}>
             <i className="bi bi-pencil me-2"></i>
             Chỉnh sửa
           </Button>

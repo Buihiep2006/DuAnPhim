@@ -12,6 +12,7 @@ import org.hibernate.annotations.ColumnDefault;
 @Table(name = "loai_dich_vu")
 public class LoaiDichVu {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @ColumnDefault("newsequentialid()")
     @Column(name = "id", nullable = false)
     private UUID id;

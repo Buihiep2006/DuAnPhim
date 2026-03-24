@@ -11,6 +11,7 @@ import java.util.UUID;
 public class NhanVienResponse {
     private UUID id;
     private UUID vaiTroId;
+    private String vaiTroMa;
     private String ma;
     private String hoTen;
     private String email;

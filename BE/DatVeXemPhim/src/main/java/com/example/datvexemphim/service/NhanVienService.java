@@ -12,4 +12,5 @@ public interface NhanVienService {
     NhanVienResponse create(NhanVienRequest request);
     NhanVienResponse update(UUID id, NhanVienRequest request);
     void delete(UUID id);
+    NhanVienResponse login(String email, String matKhau);
 }

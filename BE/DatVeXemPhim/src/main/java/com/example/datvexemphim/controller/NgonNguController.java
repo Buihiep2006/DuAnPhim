@@ -26,7 +26,7 @@ public class NgonNguController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<NgonNguResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<NgonNguResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(ngonNguService.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,14 @@ public class NgonNguController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<NgonNguResponse>> update(@PathVariable UUID id, @Valid @RequestBody NgonNguRequest request) {
+    public ResponseEntity<ApiResponse<NgonNguResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody NgonNguRequest request) {
         return ResponseEntity.ok(ApiResponse.success(ngonNguService.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         ngonNguService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
     }
 }
+

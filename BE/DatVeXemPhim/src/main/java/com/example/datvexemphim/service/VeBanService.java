@@ -12,4 +12,5 @@ public interface VeBanService {
     VeBanResponse create(VeBanRequest request);
     VeBanResponse update(UUID id, VeBanRequest request);
     void delete(UUID id);
+    java.util.List<VeBanResponse> getBySuatChieuId(UUID suatChieuId);
 }

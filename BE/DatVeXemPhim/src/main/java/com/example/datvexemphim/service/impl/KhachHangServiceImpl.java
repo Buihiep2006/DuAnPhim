@@ -92,4 +92,16 @@ public class KhachHangServiceImpl implements KhachHangService {
         if (!repository.existsById(id)) throw new ResourceNotFoundException("Not found: " + id);
         repository.deleteById(id);
     }
+
+    @Override
+    public KhachHangResponse login(String email, String matKhau) {
+        KhachHang khachHang = repository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Email không tồn tại"));
+        
+        if (!khachHang.getMatKhau().equals(matKhau)) {
+            throw new RuntimeException("Mật khẩu không đúng");
+        }
+        
+        return mapToResponse(khachHang);
+    }
 }

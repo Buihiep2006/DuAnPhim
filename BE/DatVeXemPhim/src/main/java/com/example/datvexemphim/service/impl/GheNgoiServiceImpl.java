@@ -19,7 +19,20 @@ public class GheNgoiServiceImpl implements GheNgoiService {
     @Autowired
     private GheNgoiRepository repository;
 
+    @Autowired
+    private com.example.datvexemphim.repository.LoaiGheRepository loaiGheRepository;
+
     private GheNgoiResponse mapToResponse(GheNgoi entity) {
+        String loaiGheTen = "";
+        java.math.BigDecimal phuThu = java.math.BigDecimal.ZERO;
+        if (entity.getLoaiGheId() != null) {
+            var loai = loaiGheRepository.findById(entity.getLoaiGheId()).orElse(null);
+            if (loai != null) {
+                loaiGheTen = loai.getTen();
+                phuThu = loai.getPhuThu();
+            }
+        }
+
         return GheNgoiResponse.builder()
                 .id(entity.getId())
                 .phongChieuId(entity.getPhongChieuId())
@@ -28,7 +41,16 @@ public class GheNgoiServiceImpl implements GheNgoiService {
                 .hangGhe(entity.getHangGhe())
                 .soThuTu(entity.getSoThuTu())
                 .trangThai(entity.getTrangThai())
+                .loaiGheTen(loaiGheTen)
+                .phuThu(phuThu)
                 .build();
+    }
+
+    @Override
+    public List<GheNgoiResponse> getByPhongChieuId(UUID phongChieuId) {
+        return repository.findByPhongChieuId(phongChieuId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override

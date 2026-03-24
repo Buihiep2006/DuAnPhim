@@ -19,7 +19,43 @@ public class SuatChieuServiceImpl implements SuatChieuService {
     @Autowired
     private SuatChieuRepository repository;
 
+    @Autowired private com.example.datvexemphim.repository.PhimRepository phimRepository;
+    @Autowired private com.example.datvexemphim.repository.PhongChieuRepository phongChieuRepository;
+    @Autowired private com.example.datvexemphim.repository.RapChieuRepository rapChieuRepository;
+    @Autowired private com.example.datvexemphim.repository.DinhDangPhimRepository dinhDangPhimRepository;
+
     private SuatChieuResponse mapToResponse(SuatChieu entity) {
+        String tenPhim = "";
+        String hinhAnhPoster = "";
+        if (entity.getPhimId() != null) {
+            var phim = phimRepository.findById(entity.getPhimId()).orElse(null);
+            if (phim != null) {
+                tenPhim = phim.getTen();
+                hinhAnhPoster = phim.getHinhAnhPoster();
+            }
+        }
+
+        String tenPhongChieu = "";
+        String tenRapChieu = "";
+        String diaChiRapChieu = "";
+        if (entity.getPhongChieuId() != null) {
+            var phong = phongChieuRepository.findById(entity.getPhongChieuId()).orElse(null);
+            if (phong != null) {
+                tenPhongChieu = phong.getTen();
+                var rap = rapChieuRepository.findById(phong.getRapChieuId()).orElse(null);
+                if (rap != null) {
+                    tenRapChieu = rap.getTen();
+                    diaChiRapChieu = rap.getDiaChi();
+                }
+            }
+        }
+
+        String tenDinhDangPhim = "";
+        if (entity.getDinhDangPhimId() != null) {
+            tenDinhDangPhim = dinhDangPhimRepository.findById(entity.getDinhDangPhimId())
+                    .map(d -> d.getTen()).orElse("");
+        }
+
         return SuatChieuResponse.builder()
                 .id(entity.getId())
                 .phimId(entity.getPhimId())
@@ -31,6 +67,12 @@ public class SuatChieuServiceImpl implements SuatChieuService {
                 .giaVeCoBan(entity.getGiaVeCoBan())
                 .trangThai(entity.getTrangThai())
                 .ngayTao(entity.getNgayTao())
+                .tenPhim(tenPhim)
+                .hinhAnhPoster(hinhAnhPoster)
+                .tenPhongChieu(tenPhongChieu)
+                .tenRapChieu(tenRapChieu)
+                .diaChiRapChieu(diaChiRapChieu)
+                .tenDinhDangPhim(tenDinhDangPhim)
                 .build();
     }
 
@@ -43,6 +85,14 @@ public class SuatChieuServiceImpl implements SuatChieuService {
     public SuatChieuResponse getById(UUID id) {
         SuatChieu entity = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Not found: " + id));
         return mapToResponse(entity);
+    }
+
+    @Override
+    public List<SuatChieuResponse> getByPhimId(UUID phimId) {
+        return repository.findByPhimId(phimId).stream()
+                .filter(s -> s.getTrangThai() != 3) // Exclude deleted
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -77,7 +127,8 @@ public class SuatChieuServiceImpl implements SuatChieuService {
 
     @Override
     public void delete(UUID id) {
-        if (!repository.existsById(id)) throw new ResourceNotFoundException("Not found: " + id);
-        repository.deleteById(id);
+        SuatChieu entity = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Not found: " + id));
+        entity.setTrangThai(3);
+        repository.save(entity);
     }
 }

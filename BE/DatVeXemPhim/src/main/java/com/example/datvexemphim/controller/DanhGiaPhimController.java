@@ -26,7 +26,7 @@ public class DanhGiaPhimController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<DanhGiaPhimResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<DanhGiaPhimResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,14 @@ public class DanhGiaPhimController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<DanhGiaPhimResponse>> update(@PathVariable UUID id, @Valid @RequestBody DanhGiaPhimRequest request) {
+    public ResponseEntity<ApiResponse<DanhGiaPhimResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody DanhGiaPhimRequest request) {
         return ResponseEntity.ok(ApiResponse.success(service.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
     }
 }
+

@@ -1,32 +1,68 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Container, Row, Col, Button, Card, Badge, Alert } from 'react-bootstrap';
-import { suatChieuData, phimData, phongChieuData, rapChieuData, gheNgoiData, loaiGheData } from '../../../data/mockData';
+import { Container, Row, Col, Button, Card, Badge, Alert, Spinner } from 'react-bootstrap';
 import { useBooking } from '../../contexts/BookingContext';
 import { GheNgoiWithDetails } from '../../../types/database.types';
+
+const API = 'http://localhost:9999/api/admin';
 
 export default function SeatSelectionPage() {
   const { showtimeId } = useParams<{ showtimeId: string }>();
   const navigate = useNavigate();
   const { bookingState, addSeat, removeSeat, clearSeats, setShowtime, remainingTime, startTimer } = useBooking();
 
+  const [loading, setLoading] = useState(true);
+  const [showtime, setLocalShowtime] = useState<any>(null);
+  const [roomSeats, setRoomSeats] = useState<any[]>([]);
+  const [soldSeats, setSoldSeats] = useState<string[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  const [soldSeats] = useState<string[]>(['seat-room1-A1', 'seat-room1-A2', 'seat-room1-B5']); // Mock sold seats
-
-  const showtime = suatChieuData.find(s => s.id === showtimeId);
-  const movie = phimData.find(m => m.id === showtime?.phim_id);
-  const room = phongChieuData.find(r => r.id === showtime?.phong_chieu_id);
-  const cinema = rapChieuData.find(c => c.id === room?.rap_chieu_id);
-  const roomSeats = gheNgoiData.filter(s => s.phong_chieu_id === room?.id);
 
   useEffect(() => {
-    if (showtime) {
-      setShowtime(showtime.id);
-      startTimer(10); // 10 minutes countdown
+    if (showtimeId) {
+      fetchInitialData();
     }
-  }, [showtime]);
+  }, [showtimeId]);
 
-  if (!showtime || !movie || !room) {
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      const sRes = await fetch(`${API}/suat-chieu/${showtimeId}`);
+      const sJson = await sRes.json();
+      
+      if (sJson.success && sJson.data) {
+        const s = sJson.data;
+        setLocalShowtime(s);
+        setShowtime(s.id);
+        startTimer(10);
+
+        // Fetch seats for this room
+        const seatsRes = await fetch(`${API}/ghe-ngoi/phong-chieu/${s.phongChieuId}`);
+        const seatsJson = await seatsRes.json();
+        if (seatsJson.success) setRoomSeats(seatsJson.data);
+
+        // Fetch sold seats
+        const soldRes = await fetch(`${API}/ve-ban/suat-chieu/${showtimeId}`);
+        const soldJson = await soldRes.json();
+        if (soldJson.success) {
+          setSoldSeats(soldJson.data.map((v: any) => v.gheNgoiId));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching seat selection data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Container className="py-5 text-center">
+        <Spinner animation="border" variant="danger" />
+      </Container>
+    );
+  }
+
+  if (!showtime) {
     return (
       <Container className="py-5 text-center">
         <h3>Không tìm thấy suất chiếu</h3>
@@ -39,10 +75,11 @@ export default function SeatSelectionPage() {
 
   // Group seats by row
   const seatsByRow = roomSeats.reduce((acc, seat) => {
-    if (!acc[seat.hang_ghe]) {
-      acc[seat.hang_ghe] = [];
+    const row = seat.hangGhe || 'Unknown';
+    if (!acc[row]) {
+      acc[row] = [];
     }
-    acc[seat.hang_ghe].push(seat);
+    acc[row].push(seat);
     return acc;
   }, {} as Record<string, typeof roomSeats>);
 
@@ -60,13 +97,12 @@ export default function SeatSelectionPage() {
     }
   };
 
-  const getSeatClass = (seatId: string, loaiGheId: string) => {
+  const getSeatClass = (seatId: string, loaiGheTen: string) => {
     if (soldSeats.includes(seatId)) return 'seat sold';
     if (selectedSeats.includes(seatId)) return 'seat selected';
 
-    const loaiGhe = loaiGheData.find(l => l.id === loaiGheId);
-    if (loaiGhe?.ma === 'VIP') return 'seat available vip';
-    if (loaiGhe?.ma === 'COUPLE') return 'seat available couple';
+    if (loaiGheTen === 'VIP') return 'seat available vip';
+    if (loaiGheTen === 'COUPLE') return 'seat available couple';
 
     return 'seat available';
   };
@@ -74,17 +110,16 @@ export default function SeatSelectionPage() {
   const calculateTotal = () => {
     let total = 0;
     selectedSeats.forEach(seatId => {
-      const seat = gheNgoiData.find(s => s.id === seatId);
+      const seat = roomSeats.find(s => s.id === seatId);
       if (seat) {
-        const loaiGhe = loaiGheData.find(l => l.id === seat.loai_ghe_id);
-        total += (showtime.gia_ve_co_ban || 0) + (loaiGhe?.phu_thu || 0);
+        total += (showtime.giaVeCoBan || 0) + (seat.phuThu || 0);
       }
     });
     return total;
   };
 
   const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('vi-VN') + 'đ';
+    return (amount || 0).toLocaleString('vi-VN') + 'đ';
   };
 
   const formatTime = (seconds: number) => {
@@ -106,7 +141,7 @@ export default function SeatSelectionPage() {
               <Row className="align-items-center">
                 <Col>
                   <h5 className="mb-0">Chọn ghế ngồi</h5>
-                  <small>{cinema?.ten} - {room.ten}</small>
+                  <small>{showtime.tenRapChieu} - {showtime.tenPhongChieu}</small>
                 </Col>
                 <Col xs="auto">
                   {remainingTime > 0 && (
@@ -132,16 +167,16 @@ export default function SeatSelectionPage() {
                     <Badge bg="secondary" className="me-2" style={{ width: '30px' }}>
                       {row}
                     </Badge>
-                    {seatsByRow[row]
-                      .sort((a, b) => a.so_thu_tu - b.so_thu_tu)
+                    {(seatsByRow[row] as any[])
+                      .sort((a, b) => a.soThuTu - b.soThuTu)
                       .map(seat => (
                         <div
                           key={seat.id}
-                          className={getSeatClass(seat.id, seat.loai_ghe_id)}
+                          className={getSeatClass(seat.id, seat.loaiGheTen)}
                           onClick={() => handleSeatClick(seat.id)}
-                          title={seat.ma_ghe}
+                          title={seat.maGhe}
                         >
-                          {seat.so_thu_tu}
+                          {seat.soThuTu}
                         </div>
                       ))}
                   </div>
@@ -183,17 +218,17 @@ export default function SeatSelectionPage() {
             <Card.Body>
               <div className="mb-3">
                 <img
-                  src={movie.hinh_anh_poster}
-                  alt={movie.ten}
+                  src={showtime.hinhAnhPoster || 'https://via.placeholder.com/300x450?text=No+Poster'}
+                  alt={showtime.tenPhim}
                   className="img-fluid rounded mb-2"
                 />
-                <h6>{movie.ten}</h6>
+                <h6>{showtime.tenPhim}</h6>
                 <div className="small text-muted">
-                  <div>{cinema?.ten}</div>
-                  <div>{room.ten}</div>
+                  <div>{showtime.tenRapChieu}</div>
+                  <div>{showtime.tenPhongChieu}</div>
                   <div>
-                    {showtime.thoi_gian_bat_dau.toLocaleDateString('vi-VN')} -{' '}
-                    {showtime.thoi_gian_bat_dau.toLocaleTimeString('vi-VN', {
+                    {new Date(showtime.thoiGianBatDau).toLocaleDateString('vi-VN')} -{' '}
+                    {new Date(showtime.thoiGianBatDau).toLocaleTimeString('vi-VN', {
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
@@ -210,7 +245,7 @@ export default function SeatSelectionPage() {
                     {selectedSeats.length === 0
                       ? 'Chưa chọn'
                       : selectedSeats
-                          .map(id => gheNgoiData.find(s => s.id === id)?.ma_ghe)
+                          .map(id => roomSeats.find(s => s.id === id)?.maGhe)
                           .join(', ')}
                   </span>
                 </div>

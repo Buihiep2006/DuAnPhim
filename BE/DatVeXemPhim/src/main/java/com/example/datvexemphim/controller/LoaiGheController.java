@@ -26,7 +26,7 @@ public class LoaiGheController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<LoaiGheResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<LoaiGheResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,14 @@ public class LoaiGheController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<LoaiGheResponse>> update(@PathVariable UUID id, @Valid @RequestBody LoaiGheRequest request) {
+    public ResponseEntity<ApiResponse<LoaiGheResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody LoaiGheRequest request) {
         return ResponseEntity.ok(ApiResponse.success(service.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
     }
 }
+

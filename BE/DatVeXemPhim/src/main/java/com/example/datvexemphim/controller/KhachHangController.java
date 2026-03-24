@@ -26,7 +26,7 @@ public class KhachHangController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<KhachHangResponse>> getById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<KhachHangResponse>> getById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Lấy thông tin thành công"));
     }
 
@@ -36,13 +36,21 @@ public class KhachHangController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<KhachHangResponse>> update(@PathVariable UUID id, @Valid @RequestBody KhachHangRequest request) {
+    public ResponseEntity<ApiResponse<KhachHangResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody KhachHangRequest request) {
         return ResponseEntity.ok(ApiResponse.success(service.update(id, request), "Cập nhật thành công"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<KhachHangResponse>> login(@RequestBody java.util.Map<String, String> request) {
+        String email = request.get("email");
+        String matKhau = request.get("matKhau");
+        return ResponseEntity.ok(ApiResponse.success(service.login(email, matKhau), "Đăng nhập thành công"));
+    }
 }
+

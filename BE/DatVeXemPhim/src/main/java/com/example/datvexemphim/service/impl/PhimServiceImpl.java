@@ -30,8 +30,12 @@ public class PhimServiceImpl implements PhimService {
 
     private PhimResponse mapToResponse(Phim entity) {
         // Fetch relationships
-        List<String> theLoai = phimTheLoaiRepository.findByPhimId(entity.getId()).stream()
+        List<PhimTheLoai> phimTheLoais = phimTheLoaiRepository.findByPhimId(entity.getId());
+        List<String> theLoai = phimTheLoais.stream()
                 .map(pt -> pt.getTheLoai().getTen()).collect(Collectors.toList());
+        List<UUID> theLoaiIds = phimTheLoais.stream()
+                .map(pt -> pt.getTheLoai().getId()).collect(Collectors.toList());
+        
         List<String> daoDien = phimDaoDienRepository.findByPhimId(entity.getId()).stream()
                 .map(pd -> pd.getDaoDien().getTen()).collect(Collectors.toList());
         List<String> dienVien = phimDienVienRepository.findByPhimId(entity.getId()).stream()
@@ -62,6 +66,7 @@ public class PhimServiceImpl implements PhimService {
                 .ngayTao(entity.getNgayTao())
                 .phanLoaiDoTuoi(phanLoaiDoTuoi)
                 .theLoai(theLoai)
+                .theLoaiIds(theLoaiIds)
                 .daoDien(daoDien)
                 .dienVien(dienVien)
                 .ngonNgu(ngonNgu)
@@ -70,7 +75,9 @@ public class PhimServiceImpl implements PhimService {
 
     @Override
     public List<PhimResponse> getAll() {
-        return repository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
+        return repository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -110,13 +117,9 @@ public class PhimServiceImpl implements PhimService {
     @Transactional
     @Override
     public void delete(UUID id) {
-        if (!repository.existsById(id)) throw new ResourceNotFoundException("Not found: " + id);
-        // Cascades should handle deletion, but explicitly deleting mapping tables is safer
-        phimTheLoaiRepository.deleteByPhimId(id);
-        phimDaoDienRepository.deleteByPhimId(id);
-        phimDienVienRepository.deleteByPhimId(id);
-        phimNgonNguRepository.deleteByPhimId(id);
-        repository.deleteById(id);
+        Phim phim = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Not found: " + id));
+        phim.setTrangThai(3);
+        repository.save(phim);
     }
 
     private void mapToEntity(PhimRequest request, Phim entity) {
