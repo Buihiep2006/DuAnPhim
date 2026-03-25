@@ -31,4 +31,5 @@ public class PhimResponse {
     private List<String> daoDien;
     private List<String> dienVien;
     private List<String> ngonNgu;
+    private List<UUID> rapChieuIds;
 }

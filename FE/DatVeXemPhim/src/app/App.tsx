@@ -9,9 +9,11 @@ import HomePage from './pages/customer/HomePage';
 import MovieDetailPage from './pages/customer/MovieDetailPage';
 import SeatSelectionPage from './pages/customer/SeatSelectionPage';
 import CheckoutPage from './pages/customer/CheckoutPage';
+import BookingSuccessPage from './pages/customer/BookingSuccessPage';
 import ProfilePage from './pages/customer/ProfilePage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import GoogleAuthCallbackPage from './pages/auth/GoogleAuthCallbackPage';
 
 // Admin Pages
 import AdminLogin from './pages/admin/AdminLogin';
@@ -45,6 +47,7 @@ export default function App() {
             {/* Auth Routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/auth/google/callback" element={<GoogleAuthCallbackPage />} />
             <Route path="/admin/login" element={<AdminLogin />} />
 
             {/* Customer Routes */}
@@ -57,6 +60,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <CheckoutPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/booking-success"
+                element={
+                  <ProtectedRoute>
+                    <BookingSuccessPage />
                   </ProtectedRoute>
                 }
               />

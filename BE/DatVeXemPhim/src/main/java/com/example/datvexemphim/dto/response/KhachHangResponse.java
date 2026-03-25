@@ -13,7 +13,6 @@ public class KhachHangResponse {
     private String ma;
     private String hoTen;
     private String email;
-    private String matKhau;
     private LocalDate ngaySinh;
     private Integer gioiTinh;
     private String soDienThoai;

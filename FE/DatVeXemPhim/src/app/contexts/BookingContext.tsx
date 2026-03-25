@@ -101,12 +101,21 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
       removeService(serviceId);
       return;
     }
-    setBookingState(prev => ({
-      ...prev,
-      selected_services: prev.selected_services.map(s =>
-        s.id === serviceId ? { ...s, quantity } : s
-      )
-    }));
+    setBookingState(prev => {
+      const existing = prev.selected_services.find(s => s.id === serviceId);
+      if (existing) {
+        return {
+          ...prev,
+          selected_services: prev.selected_services.map(s =>
+            s.id === serviceId ? { ...s, quantity } : s
+          )
+        };
+      }
+      return {
+        ...prev,
+        selected_services: [...prev.selected_services, { id: serviceId, quantity }]
+      };
+    });
   };
 
   const applyPromoCode = (code: string) => {

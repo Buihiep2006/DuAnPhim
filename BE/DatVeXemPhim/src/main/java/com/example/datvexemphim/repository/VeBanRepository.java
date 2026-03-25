@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface VeBanRepository extends JpaRepository<VeBan, UUID> {
     List<VeBan> findBySuatChieuId(UUID suatChieuId);
+    boolean existsBySuatChieuIdAndGheNgoiIdAndTrangThaiNot(UUID suatChieuId, UUID gheNgoiId, Integer trangThai);
 }

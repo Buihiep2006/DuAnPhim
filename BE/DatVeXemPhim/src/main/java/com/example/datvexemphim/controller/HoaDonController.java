@@ -55,4 +55,10 @@ public class HoaDonController {
     public ResponseEntity<ApiResponse<java.util.List<com.example.datvexemphim.dto.response.BookingHistoryResponse>>> getBookingHistory(@PathVariable("khachHangId") java.util.UUID khachHangId) {
         return ResponseEntity.ok(ApiResponse.success(service.getBookingHistory(khachHangId), "Lấy lịch sử đặt vé thành công"));
     }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<Void>> cancel(@PathVariable("id") UUID id) {
+        service.cancel(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Hủy vé thành công"));
+    }
 }

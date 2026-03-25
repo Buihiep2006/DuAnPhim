@@ -27,6 +27,7 @@ public class PhimServiceImpl implements PhimService {
     @Autowired private PhimNgonNguRepository phimNgonNguRepository;
     @Autowired private NgonNguRepository ngonNguRepository;
     @Autowired private PhanLoaiDoTuoiRepository phanLoaiDoTuoiRepository;
+    @Autowired private SuatChieuRepository suatChieuRepository;
 
     private PhimResponse mapToResponse(Phim entity) {
         // Fetch relationships
@@ -70,6 +71,7 @@ public class PhimServiceImpl implements PhimService {
                 .daoDien(daoDien)
                 .dienVien(dienVien)
                 .ngonNgu(ngonNgu)
+                .rapChieuIds(suatChieuRepository.findDistinctRapChieuIdsByPhimId(entity.getId()))
                 .build();
     }
 

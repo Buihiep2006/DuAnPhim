@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Row, Col, Card, Badge, ListGroup, Nav, Tab, Button, Form, Table, Spinner } from 'react-bootstrap';
+import { Container, Row, Col, Card, Badge, ListGroup, Nav, Tab, Button, Form, Table, Spinner, Modal } from 'react-bootstrap';
 import { useAuth } from '../../contexts/AuthContext';
 import { hangThanhVienData } from '../../../data/mockData';
 
@@ -22,11 +22,13 @@ export default function ProfilePage() {
   const [history, setHistory] = React.useState<BookingHistory[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [showModal, setShowModal] = React.useState(false);
+  const [selectedBooking, setSelectedBooking] = React.useState<BookingHistory | null>(null);
 
   React.useEffect(() => {
     if (user?.id) {
       setError(null);
-      fetch(`http://localhost:9999/api/admin/hoa-don/khach-hang/${user.id}`)
+      fetch('http://localhost:9999/api/customer/hoa-don/history')
         .then(res => res.json())
         .then(data => {
           if (data.success) {
@@ -42,6 +44,33 @@ export default function ProfilePage() {
         .finally(() => setLoading(false));
     }
   }, [user?.id]);
+
+  const handleCancel = async (id: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn hủy vé này? Thao tác này không thể hoàn tác.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://localhost:9999/api/customer/hoa-don/${id}/cancel`, {
+        method: 'PUT'
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Hủy vé thành công!');
+        setShowModal(false);
+        // Refresh history
+        const updatedHistory = history.map(item => 
+          item.id === id ? { ...item, trangThai: 2 } : item
+        );
+        setHistory(updatedHistory);
+      } else {
+        alert(data.message || 'Lỗi khi hủy vé');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Không thể kết nối đến máy chủ để hủy vé');
+    }
+  };
 
   if (!user) {
     return null;
@@ -199,12 +228,14 @@ export default function ProfilePage() {
                               <th>Rạp / Phòng</th>
                               <th>Ghế</th>
                               <th>Thời gian</th>
-                              <th>Tổng tiền</th>
+                               <th>Tổng tiền</th>
+                              <th className="text-center">Trạng thái</th>
+                              <th className="text-center">Hành động</th>
                             </tr>
                           </thead>
                           <tbody>
                             {history.map(item => (
-                              <tr key={item.id}>
+                              <tr key={item.id} className="align-middle">
                                 <td><small className="fw-bold">{item.maHoaDon}</small></td>
                                 <td>
                                   <div className="fw-bold">{item.tenPhim}</div>
@@ -217,9 +248,39 @@ export default function ProfilePage() {
                                   <small>{item.tenPhong}</small>
                                 </td>
                                 <td>{item.danhSachGhe?.join(', ')}</td>
-                                <td>{new Date(item.thoiGianTao).toLocaleDateString('vi-VN')}</td>
-                                <td className="text-danger fw-bold">
+                                <td className="small">{new Date(item.thoiGianTao).toLocaleDateString('vi-VN')}</td>
+                                <td className="text-end fw-bold">
                                   {item.tongTienThanhToan?.toLocaleString('vi-VN')}đ
+                                </td>
+                                <td className="text-center">
+                                  <Badge bg={item.trangThai === 1 ? 'success' : 'secondary'}>
+                                    {item.trangThai === 1 ? 'Thành công' : 'Đã hủy'}
+                                  </Badge>
+                                </td>
+                                <td className="text-center">
+                                  <div className="d-flex gap-2 justify-content-center">
+                                    <Button 
+                                      variant="outline-primary" 
+                                      size="sm"
+                                      title="Xem chi tiết"
+                                      onClick={() => {
+                                        setSelectedBooking(item);
+                                        setShowModal(true);
+                                      }}
+                                    >
+                                      <i className="bi bi-eye"></i>
+                                    </Button>
+                                    {item.trangThai === 1 && (
+                                      <Button 
+                                        variant="outline-danger" 
+                                        size="sm"
+                                        title="Hủy vé"
+                                        onClick={() => handleCancel(item.id)}
+                                      >
+                                        <i className="bi bi-trash"></i>
+                                      </Button>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -335,6 +396,97 @@ export default function ProfilePage() {
           </Card>
         </Col>
       </Row>
+
+      {/* Booking Details Modal */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="bg-danger text-white">
+          <Modal.Title>Chi tiết vé đặt</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4">
+          {selectedBooking && (
+            <Row>
+              <Col md={5} className="text-center border-end">
+                <div className="bg-white p-3 border mb-3 d-inline-block">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${selectedBooking.maHoaDon}`} 
+                    alt="QR Code" 
+                    className="img-fluid"
+                    style={{ width: '180px' }}
+                  />
+                </div>
+                <h5>Mã vé: {selectedBooking.maHoaDon}</h5>
+                <Badge bg={selectedBooking.trangThai === 1 ? 'success' : 'secondary'} className="px-3 py-2 mb-3">
+                  {selectedBooking.trangThai === 1 ? 'Đã thanh toán' : 'Đã hủy / Hết hạn'}
+                </Badge>
+                <div className="alert alert-info py-2 small">
+                  <i className="bi bi-info-circle me-2"></i>
+                  Đưa mã này cho nhân viên soát vé
+                </div>
+              </Col>
+              <Col md={7} className="ps-md-4">
+                <h4 className="text-primary fw-bold mb-3">{selectedBooking.tenPhim}</h4>
+                
+                <div className="mb-4">
+                  <h6 className="text-muted text-uppercase small fw-bold">Thông tin suất chiếu</h6>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span>Rạp / Phòng:</span>
+                    <span className="fw-bold">{selectedBooking.tenRap} - {selectedBooking.tenPhong}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span>Thời gian:</span>
+                    <span className="fw-bold">
+                      {new Date(selectedBooking.thoiGianBatDau).toLocaleString('vi-VN')}
+                    </span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span>Ghế ngồi:</span>
+                    <span className="fw-bold text-danger text-end" style={{ maxWidth: '180px' }}>
+                      {selectedBooking.danhSachGhe?.join(', ')}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedBooking.danhSachDichVu && selectedBooking.danhSachDichVu.length > 0 && (
+                  <div className="mb-4">
+                    <h6 className="text-muted text-uppercase small fw-bold">Dịch vụ (F&B)</h6>
+                    <ul className="list-unstyled mb-0">
+                      {selectedBooking.danhSachDichVu.map((dv, idx) => (
+                        <li key={idx} className="d-flex justify-content-between small">
+                          <span>• {dv}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <hr />
+                <div className="d-flex justify-content-between align-items-center">
+                  <span className="text-muted">Tổng tiền thanh toán:</span>
+                  <span className="h4 mb-0 fw-bold text-danger">
+                    {selectedBooking.tongTienThanhToan?.toLocaleString('vi-VN')}đ
+                  </span>
+                </div>
+                <div className="text-muted small mt-2">
+                  Đặt ngày: {new Date(selectedBooking.thoiGianTao).toLocaleString('vi-VN')}
+                </div>
+              </Col>
+            </Row>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          {selectedBooking?.trangThai === 1 && (
+            <Button variant="outline-danger" className="me-auto" onClick={() => handleCancel(selectedBooking.id)}>
+              Hủy vé này
+            </Button>
+          )}
+          <Button variant="secondary" onClick={() => setShowModal(false)}>
+            Đóng
+          </Button>
+          <Button variant="danger" onClick={() => window.print()} className="d-none d-md-block">
+            <i className="bi bi-printer me-2"></i>In vé
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 }

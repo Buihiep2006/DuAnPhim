@@ -13,4 +13,5 @@ public interface KhachHangService {
     KhachHangResponse update(UUID id, KhachHangRequest request);
     void delete(UUID id);
     KhachHangResponse login(String email, String matKhau);
+    KhachHangResponse loginWithGoogle(String email, String hoTen, String providerId, String hinhAnhDaiDien);
 }

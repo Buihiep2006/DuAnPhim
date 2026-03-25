@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Container, Row, Col, Button, Badge, Card, Nav, Tab, ListGroup, Spinner } from 'react-bootstrap';
+import { Container, Row, Col, Button, Badge, Card, Nav, Tab, ListGroup, Spinner, Modal } from 'react-bootstrap';
 import { PhimWithDetails } from '../../../types/database.types';
 
-const API = 'http://localhost:9999/api/admin';
+const API = 'http://localhost:9999/api/public';
 
 export default function MovieDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -11,6 +11,8 @@ export default function MovieDetailPage() {
   const [showtimes, setShowtimes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeDate, setActiveDate] = useState<string>('');
+  const [showTrailerModal, setShowTrailerModal] = useState(false);
+  const [showPosterModal, setShowPosterModal] = useState(false);
 
   const getPosterUrl = (url?: string | null) => {
     if (!url) return 'https://via.placeholder.com/300x450?text=No+Poster';
@@ -90,9 +92,32 @@ export default function MovieDetailPage() {
     );
   }
 
-  // Group showtimes by date
+  // Group showtimes by date with 7-day limit, future-only, and movie run dates check
+  const now = new Date();
+  const maxBookingDate = new Date();
+  maxBookingDate.setDate(maxBookingDate.getDate() + 7);
+  maxBookingDate.setHours(23, 59, 59, 999);
+
+  const releaseDate = movie.ngay_cong_chieu;
+  const endDate = movie.ngay_ket_thuc;
+
   const showtimesByDate = showtimes.reduce((acc, showtime) => {
-    const date = new Date(showtime.thoiGianBatDau).toLocaleDateString('vi-VN');
+    const startTime = new Date(showtime.thoiGianBatDau);
+    
+    // 1. Future & 7-day window
+    if (startTime < now || startTime > maxBookingDate) return acc;
+
+    // 2. Movie specific release date
+    if (releaseDate && startTime < releaseDate) return acc;
+
+    // 3. Movie specific end date
+    if (endDate) {
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      if (startTime > endOfDay) return acc;
+    }
+
+    const date = startTime.toLocaleDateString('vi-VN');
     if (!acc[date]) {
       acc[date] = [];
     }
@@ -151,11 +176,23 @@ export default function MovieDetailPage() {
           </Col>
           <Col md={9}>
             <div className="text-white mb-4">
-              <h1 className="display-5 fw-bold">{movie.ten}</h1>
+              <div className="d-flex gap-3 align-items-center mb-4">
+                <h1 className="display-5 fw-bold mb-0">{movie.ten}</h1>
+                {movie.trailer_url && (
+                  <Button 
+                    variant="outline-light" 
+                    className="rounded-pill px-4"
+                    onClick={() => setShowTrailerModal(true)}
+                  >
+                    <i className="bi bi-play-circle me-2"></i>
+                    Xem Trailer
+                  </Button>
+                )}
+              </div>
               <div className="d-flex gap-2 mb-3">
-                <Badge bg="dark">{movie.phan_loai_do_tuoi?.ma}</Badge>
+                <Badge bg="dark" className="fs-6 px-3">{movie.phan_loai_do_tuoi?.ma}</Badge>
                 {movie.the_loai_list?.map(g => (
-                  <Badge key={g.id} bg="secondary">
+                  <Badge key={g.id} bg="secondary" className="fs-6 px-3">
                     {g.ten}
                   </Badge>
                 ))}
@@ -221,15 +258,16 @@ export default function MovieDetailPage() {
                     </Col>
                     <Col md={4}>
                       {movie.trailer_url && (
-                        <div>
-                          <h5>Trailer</h5>
-                          <div className="ratio ratio-16x9">
+                        <div className="h-100">
+                          <h4 className="mb-3">Trailer Phim</h4>
+                          <div className="ratio ratio-16x9 shadow-sm rounded overflow-hidden">
                             <iframe
                               src={movie.trailer_url?.includes('watch?v=') 
                                 ? movie.trailer_url.replace('watch?v=', 'embed/') 
                                 : movie.trailer_url || ''}
                               title="Trailer"
                               allowFullScreen
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             ></iframe>
                           </div>
                         </div>
@@ -267,7 +305,9 @@ export default function MovieDetailPage() {
                           }
                           acc[cinemaId].showtimes.push(showtime);
                           return acc;
-                        }, {}) || {}).map((group: any) => (
+                        }, {}) || {}).map((group: any) => {
+                          group.showtimes.sort((a: any, b: any) => new Date(a.thoiGianBatDau).getTime() - new Date(b.thoiGianBatDau).getTime());
+                          return (
                           <Card key={group.cinema?.ten} className="mb-3">
                             <Card.Header>
                               <h5 className="mb-0">{group.cinema?.ten}</h5>
@@ -292,7 +332,8 @@ export default function MovieDetailPage() {
                               </div>
                             </Card.Body>
                           </Card>
-                        ))}
+                          );
+                        })}
                     </>
                   )}
                 </Tab.Pane>
@@ -306,6 +347,49 @@ export default function MovieDetailPage() {
           </Card.Body>
         </Card>
       </Container>
+
+      {/* Trailer Modal */}
+      <Modal 
+        show={showTrailerModal} 
+        onHide={() => setShowTrailerModal(false)} 
+        size="xl" 
+        centered
+        contentClassName="bg-transparent border-0"
+      >
+        <Modal.Header closeButton closeVariant="white" className="border-0 p-0 mb-2"></Modal.Header>
+        <Modal.Body className="p-0">
+          <div className="ratio ratio-16x9 shadow-lg">
+            <iframe
+              src={movie.trailer_url?.includes('watch?v=') 
+                ? movie.trailer_url.replace('watch?v=', 'embed/') 
+                : movie.trailer_url || ''}
+              title="Movie Trailer"
+              allowFullScreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              className="rounded"
+            ></iframe>
+          </div>
+        </Modal.Body>
+      </Modal>
+
+      {/* Poster Modal */}
+      <Modal
+        show={showPosterModal}
+        onHide={() => setShowPosterModal(false)}
+        size="lg"
+        centered
+        contentClassName="bg-transparent border-0"
+      >
+        <Modal.Header closeButton closeVariant="white" className="border-0 p-0 mb-2"></Modal.Header>
+        <Modal.Body className="p-0 text-center">
+          <img
+            src={getPosterUrl(movie.hinh_anh_poster)}
+            alt={movie.ten}
+            className="img-fluid rounded shadow-lg"
+            style={{ maxHeight: '90vh' }}
+          />
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }

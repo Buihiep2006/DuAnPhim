@@ -17,11 +17,11 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const success = await loginAdmin(email, password);
-      if (success) {
+      const result = await loginAdmin(email, password);
+      if (result.success) {
         navigate('/admin/dashboard');
       } else {
-        setError('Email hoặc mật khẩu không đúng');
+        setError(result.message || 'Email hoặc mật khẩu không đúng');
       }
     } catch (err) {
       setError('Đã xảy ra lỗi. Vui lòng thử lại.');

@@ -99,8 +99,14 @@ body {
   cursor: not-allowed;
 }
 
-.seat.vip {
+.seat.available.vip {
   background: linear-gradient(135deg, #ffd700, #ffed4e);
+  color: #000;
+}
+
+.seat.available.couple {
+  background: linear-gradient(135deg, #0dcaf0, #33ccff);
+  color: #fff;
 }
 
 /* Loading Spinner */

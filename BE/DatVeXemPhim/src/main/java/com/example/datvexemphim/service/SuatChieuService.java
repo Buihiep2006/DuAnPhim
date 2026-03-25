@@ -13,4 +13,5 @@ public interface SuatChieuService {
     SuatChieuResponse update(UUID id, SuatChieuRequest request);
     void delete(UUID id);
     java.util.List<SuatChieuResponse> getByPhimId(UUID phimId);
+    List<SuatChieuResponse> generate(UUID phimId, UUID phongChieuId, java.time.LocalDate ngayChieu, UUID dinhDangPhimId, java.time.LocalTime gioMo, java.time.LocalTime gioDong);
 }

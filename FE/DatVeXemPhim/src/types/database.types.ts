@@ -353,6 +353,7 @@ export interface PhimWithDetails extends Phim {
   dien_vien_list?: DienVien[];
   dao_dien_list?: DaoDien[];
   ngon_ngu_list?: NgonNgu[];
+  rap_chieu_list?: { id: string }[];
   diem_danh_gia_trung_binh?: number;
   so_luong_danh_gia?: number;
 }

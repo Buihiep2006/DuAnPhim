@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Badge, Carousel, Form, Nav } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Badge, Carousel, Form, Nav, Modal } from 'react-bootstrap';
 import { Link, useSearchParams } from 'react-router-dom';
 import { PhimWithDetails, TheLoaiPhim, RapChieu } from '../../../types/database.types';
 
-const API = 'http://localhost:9999/api/admin';
+const API = 'http://localhost:9999/api/public';
 
 export default function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -16,6 +16,10 @@ export default function HomePage() {
   const [selectedCinema, setSelectedCinema] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'showing');
   const [loading, setLoading] = useState(true);
+  const [showTrailerModal, setShowTrailerModal] = useState(false);
+  const [showPosterModal, setShowPosterModal] = useState(false);
+  const [currentTrailerUrl, setCurrentTrailerUrl] = useState('');
+  const [selectedPosterUrl, setSelectedPosterUrl] = useState('');
 
   useEffect(() => {
     fetchInitialData();
@@ -60,12 +64,13 @@ export default function HomePage() {
             ma: m.phanLoaiDoTuoi || 'G',
             mo_ta: ''
           },
-          the_loai_list: m.theLoaiIds?.map((id: string, index: number) => ({
-            id,
-            ten: m.theLoai?.[index] || 'N/A'
-          })) || []
-        }));
-        setMovies(mappedMovies);
+            the_loai_list: m.theLoaiIds?.map((id: string, index: number) => ({
+              id,
+              ten: m.theLoai?.[index] || 'N/A'
+            })) || [],
+            rap_chieu_list: m.rapChieuIds?.map((id: string) => ({ id })) || []
+          }));
+          setMovies(mappedMovies);
       }
       
       setGenres(genreJson.data || []);
@@ -92,6 +97,12 @@ export default function HomePage() {
       if (selectedGenre !== 'all') {
         const hasGenre = movie.the_loai_list?.some(g => g.id === selectedGenre);
         if (!hasGenre) return false;
+      }
+
+      // Filter by cinema
+      if (selectedCinema !== 'all') {
+        const hasCinema = movie.rap_chieu_list?.some(r => r.id === selectedCinema);
+        if (!hasCinema) return false;
       }
 
       return true;
@@ -143,7 +154,17 @@ export default function HomePage() {
                     </Button>
                   </Link>
                   {movie.trailer_url && (
-                    <Button variant="outline-light" size="lg" href={movie.trailer_url} target="_blank">
+                    <Button 
+                      variant="outline-light" 
+                      size="lg" 
+                      onClick={() => {
+                        const embedUrl = movie.trailer_url?.includes('watch?v=') 
+                          ? movie.trailer_url.replace('watch?v=', 'embed/') 
+                          : movie.trailer_url;
+                        setCurrentTrailerUrl(embedUrl || '');
+                        setShowTrailerModal(true);
+                      }}
+                    >
                       <i className="bi bi-play-circle me-2"></i>
                       Xem trailer
                     </Button>
@@ -246,12 +267,25 @@ export default function HomePage() {
               <Col key={movie.id} sm={6} md={4} lg={3}>
                 <Card className="h-100 movie-card border-0 shadow-sm">
                   <div style={{ position: 'relative' }}>
-                    <Card.Img
-                      variant="top"
-                      src={getPosterUrl(movie.hinh_anh_poster)}
-                      alt={movie.ten}
-                      style={{ height: '350px', objectFit: 'cover' }}
-                    />
+                    <div 
+                      className="cursor-pointer overflow-hidden" 
+                      onClick={() => {
+                        setSelectedPosterUrl(getPosterUrl(movie.hinh_anh_poster));
+                        setShowPosterModal(true);
+                      }}
+                      style={{ cursor: 'zoom-in' }}
+                    >
+                      <Card.Img
+                        variant="top"
+                        src={getPosterUrl(movie.hinh_anh_poster)}
+                        alt={movie.ten}
+                        className="transition-transform"
+                        style={{ height: '350px', objectFit: 'cover', transition: 'transform 0.3s ease' }}
+                      />
+                      <div className="position-absolute bottom-0 end-0 p-2 bg-dark bg-opacity-50 text-white rounded-start" style={{ zIndex: 5 }}>
+                        <i className="bi bi-zoom-in"></i>
+                      </div>
+                    </div>
                     <Badge
                       bg={movie.trang_thai === 1 ? 'success' : 'warning'}
                       style={{ position: 'absolute', top: 10, right: 10 }}
@@ -359,6 +393,47 @@ export default function HomePage() {
           </Row>
         </div>
       </Container>
+
+      {/* Trailer Modal */}
+      <Modal 
+        show={showTrailerModal} 
+        onHide={() => setShowTrailerModal(false)} 
+        size="xl" 
+        centered
+        contentClassName="bg-transparent border-0"
+      >
+        <Modal.Header closeButton closeVariant="white" className="border-0 p-0 mb-2"></Modal.Header>
+        <Modal.Body className="p-0">
+          <div className="ratio ratio-16x9 shadow-lg">
+            <iframe
+              src={currentTrailerUrl}
+              title="Movie Trailer"
+              allowFullScreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              className="rounded"
+            ></iframe>
+          </div>
+        </Modal.Body>
+      </Modal>
+
+      {/* Poster Modal */}
+      <Modal 
+        show={showPosterModal} 
+        onHide={() => setShowPosterModal(false)} 
+        size="lg" 
+        centered
+        contentClassName="bg-transparent border-0"
+      >
+        <Modal.Header closeButton closeVariant="white" className="border-0 p-0 mb-2"></Modal.Header>
+        <Modal.Body className="p-0 text-center">
+          <img
+            src={selectedPosterUrl}
+            alt="Poster"
+            className="img-fluid rounded shadow-lg"
+            style={{ maxHeight: '90vh' }}
+          />
+        </Modal.Body>
+      </Modal>
     </>
   );
 }

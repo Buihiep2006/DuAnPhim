@@ -23,6 +23,7 @@ public class SuatChieuServiceImpl implements SuatChieuService {
     @Autowired private com.example.datvexemphim.repository.PhongChieuRepository phongChieuRepository;
     @Autowired private com.example.datvexemphim.repository.RapChieuRepository rapChieuRepository;
     @Autowired private com.example.datvexemphim.repository.DinhDangPhimRepository dinhDangPhimRepository;
+    @Autowired private com.example.datvexemphim.repository.CaiDatChungRepository caiDatChungRepository;
 
     private SuatChieuResponse mapToResponse(SuatChieu entity) {
         String tenPhim = "";
@@ -130,5 +131,79 @@ public class SuatChieuServiceImpl implements SuatChieuService {
         SuatChieu entity = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Not found: " + id));
         entity.setTrangThai(3);
         repository.save(entity);
+    }
+
+    @Override
+    public List<SuatChieuResponse> generate(UUID phimId, UUID phongChieuId, java.time.LocalDate ngayChieu, UUID dinhDangPhimId, java.time.LocalTime customGioMo, java.time.LocalTime customGioDong) {
+        var phim = phimRepository.findById(phimId).orElseThrow(() -> new ResourceNotFoundException("Phim not found"));
+        
+        if (phim.getNgayCongChieu() != null && ngayChieu.isBefore(phim.getNgayCongChieu().toLocalDate())) {
+            throw new RuntimeException("Ngày " + ngayChieu + " trước ngày công chiếu của phim (" + phim.getNgayCongChieu().toLocalDate() + ")");
+        }
+        if (phim.getNgayKetThuc() != null && ngayChieu.isAfter(phim.getNgayKetThuc().toLocalDate())) {
+            throw new RuntimeException("Ngày " + ngayChieu + " sau ngày kết thúc của phim (" + phim.getNgayKetThuc().toLocalDate() + ")");
+        }
+
+        var settingsList = caiDatChungRepository.findAll();
+        if (settingsList.isEmpty()) throw new RuntimeException("Chưa có cấu hình cài đặt chung");
+        var settings = settingsList.get(0);
+
+        java.time.LocalTime gioMo = customGioMo != null ? customGioMo : (settings.getGioMoCua() != null ? settings.getGioMoCua() : java.time.LocalTime.of(8, 0));
+        java.time.LocalTime gioDong = customGioDong != null ? customGioDong : (settings.getGioDongCua() != null ? settings.getGioDongCua() : java.time.LocalTime.of(23, 0));
+        int gap = settings.getThoiGianNghiSuatChieu() != null ? settings.getThoiGianNghiSuatChieu() : 15;
+        int duration = phim.getThoiLuong() != null && phim.getThoiLuong() > 0 ? phim.getThoiLuong() : 120;
+
+        java.time.LocalDateTime currentStart = ngayChieu.atTime(gioMo);
+        java.time.LocalDateTime closingTime = ngayChieu.atTime(gioDong);
+        
+        // If closing time is before or equal to opening time (e.g. midnight or overnight)
+        if (closingTime.isBefore(currentStart) || closingTime.isEqual(currentStart)) {
+            closingTime = closingTime.plusDays(1);
+        }
+
+        // Fetch existing showtimes for this room and day to avoid overlaps
+        List<SuatChieu> existing = repository.findByPhongChieuIdAndThoiGianBatDauBetween(
+                phongChieuId, ngayChieu.atStartOfDay(), ngayChieu.plusDays(1).atStartOfDay());
+
+        List<SuatChieu> generated = new java.util.ArrayList<>();
+        int count = 1;
+
+        while (count < 50 && (currentStart.plusMinutes(duration).isBefore(closingTime) || currentStart.plusMinutes(duration).isEqual(closingTime))) {
+            java.time.LocalDateTime potentialEnd = currentStart.plusMinutes(duration);
+            
+            // Overlap check
+            boolean overlaps = false;
+            java.time.LocalDateTime finalCurrentStart = currentStart;
+            for (SuatChieu ex : existing) {
+                // Check if [currentStart, potentialEnd] overlaps with [exStart, exEnd]
+                if (!(potentialEnd.isBefore(ex.getThoiGianBatDau()) || potentialEnd.isEqual(ex.getThoiGianBatDau()) 
+                        || finalCurrentStart.isAfter(ex.getThoiGianKetThuc()) || finalCurrentStart.isEqual(ex.getThoiGianKetThuc()))) {
+                    overlaps = true;
+                    // Jump to after this existing showtime + gap
+                    currentStart = ex.getThoiGianKetThuc().plusMinutes(gap);
+                    break;
+                }
+            }
+            
+            if (overlaps) continue;
+
+            SuatChieu sc = new SuatChieu();
+            sc.setPhimId(phimId);
+            sc.setPhongChieuId(phongChieuId);
+            sc.setDinhDangPhimId(dinhDangPhimId);
+            String roomPart = phongChieuId.toString().substring(0, 4);
+            sc.setMa("AT_" + roomPart + "_" + ngayChieu.toString().replace("-", "").substring(4) + "_" + count++);
+            sc.setThoiGianBatDau(currentStart);
+            sc.setThoiGianKetThuc(potentialEnd);
+            sc.setGiaVeCoBan(settings.getGiaVeCoBanMacDinh() != null ? settings.getGiaVeCoBanMacDinh() : java.math.BigDecimal.valueOf(80000.0));
+            sc.setTrangThai(1);
+            sc.setNgayTao(java.time.LocalDateTime.now());
+            
+            generated.add(repository.save(sc));
+            
+            currentStart = sc.getThoiGianKetThuc().plusMinutes(gap);
+        }
+
+        return generated.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 }

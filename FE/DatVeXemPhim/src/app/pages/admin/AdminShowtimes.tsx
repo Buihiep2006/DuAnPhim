@@ -26,8 +26,24 @@ const AdminShowtimes: React.FC = () => {
   const itemsPerPage = 5;
   const [formData, setFormData] = useState({ phimId: '', phongChieuId: '', dinhDangPhimId: '', ma: '', ngayChieu: '', gioBatDau: '', giaVeCoBan: 80000, trangThai: 1 });
   const [errors, setErrors] = useState<{[key:string]: string}>({});
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [genSettings, setGenSettings] = useState({ start: '08:00', end: '23:00', gap: 15 });
+  const [previewShows, setPreviewShows] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'compact' | 'detailed'>('compact');
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { 
+    fetchAll();
+    fetch(`${API}/cai-dat-chung`).then(res => res.json()).then(json => {
+      if (json.success && json.data && json.data.length > 0) {
+        const s = json.data[0];
+        setGenSettings({
+          start: s.gioMoCua?.substring(0, 5) || '08:00',
+          end: s.gioDongCua?.substring(0, 5) || '23:00',
+          gap: s.thoiGianNghiSuatChieu || 15
+        });
+      }
+    }).catch(e => console.error('Error fetching settings:', e));
+  }, []);
 
   const fetchAll = async () => {
     try {
@@ -50,6 +66,25 @@ const AdminShowtimes: React.FC = () => {
           };
         }));
     } catch (e) { console.error(e); }
+  };
+
+  const getGroupedShows = (data: Showtime[]) => {
+    const groups: { [key: string]: any } = {};
+    data.forEach(s => {
+      const day = s.thoiGianBatDau.split('T')[0];
+      const key = `${s.phimId}_${s.phongChieuId}_${day}`;
+      if (!groups[key]) {
+        groups[key] = {
+          ...s,
+          allShows: [s],
+          times: [s.thoiGianBatDau]
+        };
+      } else {
+        groups[key].allShows.push(s);
+        groups[key].times.push(s.thoiGianBatDau);
+      }
+    });
+    return Object.values(groups).sort((a,b) => b.thoiGianBatDau.localeCompare(a.thoiGianBatDau));
   };
 
   const getStatusBadge = (s: number) => {
@@ -117,17 +152,88 @@ const AdminShowtimes: React.FC = () => {
       }
     } catch { toast.error('Lỗi hệ thống'); }
   };
+ 
+  const handlePreview = () => {
+    if (!formData.phimId || !formData.phongChieuId || !formData.ngayChieu) {
+      toast.error('Vui lòng chọn Phim, Phòng chiếu và Ngày chiếu!');
+      return;
+    }
 
+    const movie = movies.find(m => m.id === formData.phimId);
+    const duration = movie?.thoiLuong || 120;
+    const { start, end, gap } = genSettings;
+
+    let current = new Date(`${formData.ngayChieu}T${start}:00`);
+    let closing = new Date(`${formData.ngayChieu}T${end}:00`);
+    if (closing <= current) closing.setDate(closing.getDate() + 1);
+
+    const generated = [];
+    let count = 1;
+    while (new Date(current.getTime() + duration * 60000) <= closing && count < 50) {
+      const endShow = new Date(current.getTime() + duration * 60000);
+      generated.push({
+        id: `preview-${count}`,
+        index: count++,
+        start: new Date(current),
+        end: endShow
+      });
+      current = new Date(endShow.getTime() + gap * 60000);
+    }
+    setPreviewShows(generated);
+    if (generated.length === 0) toast.warning('Không thể tạo suất chiếu nào trong khoảng thời gian này!');
+  };
+
+  const handleGenerate = async () => {
+    if (!formData.phimId || !formData.phongChieuId || !formData.ngayChieu) {
+      toast.error('Vui lòng chọn Phim, Phòng chiếu và Ngày chiếu!');
+      return;
+    }
+    
+    if (previewShows.length === 0) {
+      toast.error('Vui lòng "Xem trước" và kiểm tra lịch trước khi tạo!');
+      return;
+    }
+
+    if (!window.confirm(`Hệ thống sẽ tạo ${previewShows.length} suất chiếu. Tiếp tục?`)) return;
+
+    try {
+      const res = await fetch(`${API}/suat-chieu/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phimId: formData.phimId,
+          phongChieuId: formData.phongChieuId,
+          ngayChieu: formData.ngayChieu,
+          dinhDangPhimId: formData.dinhDangPhimId,
+          gioMo: genSettings.start,
+          gioDong: genSettings.end
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Đã tạo ${data.data.length} suất chiếu thành công!`);
+        setShowModal(false);
+        setIsGenerating(false);
+        setPreviewShows([]);
+        fetchAll();
+      } else {
+        toast.error('Lỗi: ' + (data.message || 'Thất bại'));
+      }
+    } catch { toast.error('Lỗi hệ thống'); }
+  };
+ 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Xóa suất chiếu này?')) return;
     try { const res = await fetch(`${API}/suat-chieu/${id}`, { method: 'DELETE' }); if (res.ok) { toast.success('Xóa thành công!'); fetchAll(); } }
     catch { toast.error('Lỗi hệ thống'); }
   };
 
-  const handleAdd = () => { setModalMode('add'); setSelectedItem(null); setFormData({ phimId: '', phongChieuId: '', dinhDangPhimId: '', ma: '', ngayChieu: '', gioBatDau: '', giaVeCoBan: 80000, trangThai: 1 }); setErrors({}); setShowModal(true); };
+  const handleAdd = () => { setModalMode('add'); setSelectedItem(null); setFormData({ phimId: '', phongChieuId: '', dinhDangPhimId: '', ma: '', ngayChieu: '', gioBatDau: '', giaVeCoBan: 80000, trangThai: 1 }); setErrors({}); setIsGenerating(false); setPreviewShows([]); setShowModal(true); };
   const handleEdit = (s: Showtime) => {
     setModalMode('edit');
     setSelectedItem(s);
+    setIsGenerating(false);
+    setPreviewShows([]);
     const datePart = s.thoiGianBatDau ? s.thoiGianBatDau.split('T')[0] : '';
     const timePart = s.thoiGianBatDau ? s.thoiGianBatDau.split('T')[1]?.substring(0, 5) : '';
     setFormData({
@@ -145,11 +251,13 @@ const AdminShowtimes: React.FC = () => {
   };
   const handleView = (s: Showtime) => { setModalMode('view'); setSelectedItem(s); setShowModal(true); };
 
-  // Flat filtered for pagination
+  // Data processing for table
   const allFiltered = showtimes.filter(s => selectedCinema === 'all' || s.tenRap === cinemas.find(c => c.id === selectedCinema)?.ten);
-  const totalPages = Math.ceil(allFiltered.length / itemsPerPage);
-  const paged = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  useEffect(() => { setCurrentPage(1); }, [selectedCinema]);
+  const displayData = viewMode === 'compact' ? getGroupedShows(allFiltered) : allFiltered;
+
+  const totalPages = Math.ceil(displayData.length / itemsPerPage);
+  const paged = displayData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  useEffect(() => { setCurrentPage(1); }, [selectedCinema, viewMode]);
 
   const renderPag = () => {
     if (totalPages <= 1) return null;
@@ -186,35 +294,56 @@ const AdminShowtimes: React.FC = () => {
             <option value="all">Tất cả rạp</option>
             {cinemas.map(c=>(<option key={c.id} value={c.id}>{c.ten}</option>))}
           </Form.Select></Col>
+        <Col md={4} className="d-flex align-items-end h-100">
+          <div className="bg-light p-1 rounded d-flex w-100" style={{height:'38px'}}>
+            <Button variant={viewMode === 'compact' ? 'white' : 'transparent'} size="sm" className={`flex-grow-1 border-0 ${viewMode === 'compact' ? 'shadow-sm' : 'text-muted'}`} onClick={()=>setViewMode('compact')}>Rút gọn</Button>
+            <Button variant={viewMode === 'detailed' ? 'white' : 'transparent'} size="sm" className={`flex-grow-1 border-0 ${viewMode === 'detailed' ? 'shadow-sm' : 'text-muted'}`} onClick={()=>setViewMode('detailed')}>Chi tiết</Button>
+          </div>
+        </Col>
       </Row></Card.Body></Card>
 
       <Card className="border-0 shadow-sm">
         <Card.Body className="p-0"><div className="table-responsive"><Table hover className="mb-0">
           <thead className="bg-light"><tr>
-            <th className="text-center" style={{width:'80px'}}>Mã</th><th className="text-start">Phim</th><th className="text-start">Rạp / Phòng</th><th className="text-center">Bắt đầu</th><th className="text-center">Kết thúc</th>
+            <th className="text-center" style={{width:'80px'}}>Mã</th><th className="text-start">Phim</th><th className="text-start">Rạp / Phòng</th><th className="text-center">Thời gian</th>
             <th className="text-end">Giá vé</th><th className="text-center">Trạng thái</th><th className="text-center text-nowrap" style={{width:'120px'}}>Thao tác</th>
           </tr></thead>
           <tbody>
-            {paged.map(s=>(
+            {paged.map((s: any)=>(
               <tr key={s.id}>
-                <td className="text-center"><span className="badge bg-light text-dark border">{s.ma}</span></td>
+                <td className="text-center"><span className="badge bg-light text-dark border">{viewMode === 'compact' ? 'GROUP' : s.ma}</span></td>
                 <td className="text-start fw-semibold">{s.tenPhim}</td>
                 <td className="text-start"><small>{s.tenRap}<br/><span className="text-muted">{s.tenPhong}</span></small></td>
-                <td className="text-center"><Badge bg="success"><i className="bi bi-clock me-1"></i>{formatTime(s.thoiGianBatDau)}</Badge><br/><small className="text-muted">{formatDate(s.thoiGianBatDau)}</small></td>
                 <td className="text-center">
-                  <Badge bg="danger" className="mb-1"><i className="bi bi-clock me-1"></i>{formatTime(s.thoiGianKetThuc)}</Badge>
-                  <br/><small className="text-muted">{formatDate(s.thoiGianKetThuc)}</small>
+                  {viewMode === 'compact' ? (
+                    <div className="d-flex flex-wrap justify-content-center gap-1" style={{maxWidth: '220px'}}>
+                      <div className="w-100 text-muted small mb-1">{formatDate(s.thoiGianBatDau)}</div>
+                      {s.times.sort().map((t: string, i: number) => (
+                        <Badge key={i} bg="success" style={{cursor:'pointer'}} onClick={()=>handleEdit(s.allShows.find((sh:any)=>sh.thoiGianBatDau===t))} title="Click để sửa">{formatTime(t)}</Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <Badge bg="success"><i className="bi bi-clock me-1"></i>{formatTime(s.thoiGianBatDau)}</Badge><br/><small className="text-muted">{formatDate(s.thoiGianBatDau)}</small>
+                    </>
+                  )}
                 </td>
                 <td className="text-end fw-semibold">{(s.giaVeCoBan||0).toLocaleString('vi-VN')} ₫</td>
                 <td className="text-center">{getStatusBadge(s.trangThai)}</td>
                 <td className="text-center text-nowrap">
-                  <Button variant="outline-primary" size="sm" className="me-1" onClick={()=>handleEdit(s)} title="Sửa"><i className="bi bi-pencil"></i></Button>
-                  <Button variant="outline-info" size="sm" className="me-1" onClick={()=>handleView(s)} title="Chi tiết"><i className="bi bi-eye"></i></Button>
-                  <Button variant="outline-danger" size="sm" onClick={()=>handleDelete(s.id)} title="Xóa"><i className="bi bi-trash"></i></Button>
+                  {viewMode === 'compact' ? (
+                    <Button variant="outline-info" size="sm" onClick={()=>handleEdit(s.allShows[0])} title="Quản lý"><i className="bi bi-gear-fill me-1"></i>Sửa</Button>
+                  ) : (
+                    <>
+                      <Button variant="outline-primary" size="sm" className="me-1" onClick={()=>handleEdit(s)} title="Sửa"><i className="bi bi-pencil"></i></Button>
+                      <Button variant="outline-info" size="sm" className="me-1" onClick={()=>handleView(s)} title="Chi tiết"><i className="bi bi-eye"></i></Button>
+                      <Button variant="outline-danger" size="sm" onClick={()=>handleDelete(s.id)} title="Xóa"><i className="bi bi-trash"></i></Button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
-            {paged.length===0&&<tr><td colSpan={8} className="text-center text-muted py-4">Không có dữ liệu</td></tr>}
+            {paged.length===0&&<tr><td colSpan={7} className="text-center text-muted py-4">Không có dữ liệu</td></tr>}
           </tbody>
         </Table></div></Card.Body>
         <Card.Footer className="bg-white"><div className="d-flex justify-content-between align-items-center">
@@ -237,95 +366,169 @@ const AdminShowtimes: React.FC = () => {
               <p><strong>Giá vé:</strong> {(selectedItem.giaVeCoBan || 0).toLocaleString('vi-VN')} ₫</p>
             </div>
           ) : (
-            <Form>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Mã</Form.Label>
-                    <Form.Control isInvalid={!!errors.ma} value={formData.ma} onChange={e => setFormData(p => ({ ...p, ma: e.target.value }))} />
-                    <Form.Control.Feedback type="invalid">{errors.ma}</Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Phim</Form.Label>
-                    <Form.Select isInvalid={!!errors.phimId} value={formData.phimId} onChange={e => setFormData(p => ({ ...p, phimId: e.target.value }))}>
-                      <option value="">-- Chọn phim --</option>
-                      {movies.map(m => (<option key={m.id} value={m.id}>{m.ten}</option>))}
-                    </Form.Select>
-                    <Form.Control.Feedback type="invalid">{errors.phimId}</Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Định dạng phim</Form.Label>
-                    <Form.Select isInvalid={!!errors.dinhDangPhimId} value={formData.dinhDangPhimId} onChange={e => setFormData(p => ({ ...p, dinhDangPhimId: e.target.value }))}>
-                      <option value="">-- Chọn định dạng --</option>
-                      {formats.map(f => (<option key={f.id} value={f.id}>{f.ten}</option>))}
-                    </Form.Select>
-                    <Form.Control.Feedback type="invalid">{errors.dinhDangPhimId}</Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Phòng chiếu</Form.Label>
-                    <Form.Select isInvalid={!!errors.phongChieuId} value={formData.phongChieuId} onChange={e => setFormData(p => ({ ...p, phongChieuId: e.target.value }))}>
-                      <option value="">-- Chọn phòng --</option>
-                      {rooms.map(r => (<option key={r.id} value={r.id}>{r.ten} ({cinemas.find(c => c.id === r.rapChieuId)?.ten || ''})</option>))}
-                    </Form.Select>
-                    <Form.Control.Feedback type="invalid">{errors.phongChieuId}</Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Ngày chiếu</Form.Label>
-                    <Form.Control type="date" isInvalid={!!errors.ngayChieu} value={formData.ngayChieu} onChange={e => setFormData(p => ({ ...p, ngayChieu: e.target.value }))} />
-                    <Form.Control.Feedback type="invalid">{errors.ngayChieu}</Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Giờ bắt đầu</Form.Label>
-                    <Form.Control type="time" isInvalid={!!errors.gioBatDau} value={formData.gioBatDau} onChange={e => setFormData(p => ({ ...p, gioBatDau: e.target.value }))} />
-                    <Form.Control.Feedback type="invalid">{errors.gioBatDau}</Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Giá vé cơ bản</Form.Label>
-                    <InputGroup>
-                      <Form.Control type="number" isInvalid={!!errors.giaVeCoBan} value={formData.giaVeCoBan} onChange={e => setFormData(p => ({ ...p, giaVeCoBan: Number(e.target.value) }))} />
-                      <InputGroup.Text>₫</InputGroup.Text>
-                      <Form.Control.Feedback type="invalid">{errors.giaVeCoBan}</Form.Control.Feedback>
-                    </InputGroup>
-                  </Form.Group>
-                </Col>
-                {modalMode === 'edit' && (
+            <>
+              {modalMode !== 'view' && (
+                <div className="mb-3 p-3 bg-light rounded d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 className="mb-1 fw-bold">Chế độ tạo suất chiếu</h6>
+                    <p className="text-muted small mb-0">Chọn nhập tay hoặc tự động sinh lịch theo ngày</p>
+                  </div>
+                  <Form.Check 
+                    type="switch"
+                    id="gen-switch"
+                    label={isGenerating ? "Tự động sinh" : "Nhập tay"}
+                    checked={isGenerating}
+                    onChange={() => setIsGenerating(!isGenerating)}
+                    className="fw-bold text-primary"
+                  />
+                </div>
+              )}
+
+              <Form>
+                <Row className="mb-3">
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>Trạng thái</Form.Label>
-                      <Form.Select value={formData.trangThai} onChange={e => setFormData(p => ({ ...p, trangThai: Number(e.target.value) }))}>
-                        <option value={1}>Đã lên lịch</option>
-                        <option value={2}>Đang chiếu</option>
-                        <option value={3}>Đã kết thúc</option>
-                        <option value={0}>Đã hủy</option>
+                      <Form.Label>Phim</Form.Label>
+                      <Form.Select isInvalid={!!errors.phimId} value={formData.phimId} onChange={e => setFormData(p => ({ ...p, phimId: e.target.value }))}>
+                        <option value="">-- Chọn phim --</option>
+                        {movies.map(m => (<option key={m.id} value={m.id}>{m.ten} ({m.thoiLuong}p)</option>))}
                       </Form.Select>
+                      <Form.Control.Feedback type="invalid">{errors.phimId}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label>Phòng chiếu</Form.Label>
+                      <Form.Select isInvalid={!!errors.phongChieuId} value={formData.phongChieuId} onChange={e => setFormData(p => ({ ...p, phongChieuId: e.target.value }))}>
+                        <option value="">-- Chọn phòng --</option>
+                        {rooms.map(r => (<option key={r.id} value={r.id}>{r.ten} ({cinemas.find(c => c.id === r.rapChieuId)?.ten || ''})</option>))}
+                      </Form.Select>
+                      <Form.Control.Feedback type="invalid">{errors.phongChieuId}</Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                {isGenerating ? (
+                  <Card className="border-info mb-3">
+                    <Card.Body>
+                      <h6 className="text-info fw-bold mb-3"><i className="bi bi-magic me-2"></i>Cấu hình sinh lịch tự động</h6>
+                      <Row className="mb-3">
+                        <Col md={4}>
+                          <Form.Group>
+                            <Form.Label className="small">Ngày chiếu</Form.Label>
+                            <Form.Control type="date" value={formData.ngayChieu} onChange={e => setFormData(p => ({ ...p, ngayChieu: e.target.value }))} />
+                          </Form.Group>
+                        </Col>
+                        <Col md={4}>
+                          <Form.Group>
+                            <Form.Label className="small">Thời gian từ</Form.Label>
+                            <Form.Control type="time" value={genSettings.start} onChange={e => setGenSettings(p => ({ ...p, start: e.target.value }))} />
+                          </Form.Group>
+                        </Col>
+                        <Col md={4}>
+                          <Form.Group>
+                            <Form.Label className="small">Đến (dự kiến)</Form.Label>
+                            <Form.Control type="time" value={genSettings.end} onChange={e => setGenSettings(p => ({ ...p, end: e.target.value }))} />
+                          </Form.Group>
+                        </Col>
+                      </Row>
+                      <div className="d-grid">
+                        <Button variant="outline-info" onClick={handlePreview}>
+                          <i className="bi bi-eye me-2"></i>Xem trước danh sách suất chiếu
+                        </Button>
+                      </div>
+
+                      {previewShows.length > 0 && (
+                        <div className="mt-3">
+                          <p className="small fw-bold mb-2 text-muted">Dự kiến tạo {previewShows.length} suất chiếu:</p>
+                          <div className="d-flex flex-wrap gap-2" style={{maxHeight:'150px', overflowY:'auto'}}>
+                            {previewShows.map((s, idx) => (
+                              <Badge key={idx} bg="light" text="dark" className="border p-2">
+                                {s.start.toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})} - {s.end.toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </Card.Body>
+                  </Card>
+                ) : (
+                  <>
+                    <Row className="mb-3">
+                      <Col md={3}>
+                        <Form.Group>
+                          <Form.Label>Mã</Form.Label>
+                          <Form.Control isInvalid={!!errors.ma} value={formData.ma} onChange={e => setFormData(p => ({ ...p, ma: e.target.value }))} />
+                          <Form.Control.Feedback type="invalid">{errors.ma}</Form.Control.Feedback>
+                        </Form.Group>
+                      </Col>
+                      <Col md={3}>
+                        <Form.Group>
+                          <Form.Label>Định dạng phim</Form.Label>
+                          <Form.Select isInvalid={!!errors.dinhDangPhimId} value={formData.dinhDangPhimId} onChange={e => setFormData(p => ({ ...p, dinhDangPhimId: e.target.value }))}>
+                            <option value="">-- Chọn định dạng --</option>
+                            {formats.map(f => (<option key={f.id} value={f.id}>{f.ten}</option>))}
+                          </Form.Select>
+                          <Form.Control.Feedback type="invalid">{errors.dinhDangPhimId}</Form.Control.Feedback>
+                        </Form.Group>
+                      </Col>
+                      <Col md={3}>
+                        <Form.Group>
+                          <Form.Label>Ngày chiếu</Form.Label>
+                          <Form.Control type="date" isInvalid={!!errors.ngayChieu} value={formData.ngayChieu} onChange={e => setFormData(p => ({ ...p, ngayChieu: e.target.value }))} />
+                          <Form.Control.Feedback type="invalid">{errors.ngayChieu}</Form.Control.Feedback>
+                        </Form.Group>
+                      </Col>
+                      <Col md={3}>
+                        <Form.Group>
+                          <Form.Label>Giờ bắt đầu</Form.Label>
+                          <Form.Control type="time" isInvalid={!!errors.gioBatDau} value={formData.gioBatDau} onChange={e => setFormData(p => ({ ...p, gioBatDau: e.target.value }))} />
+                          <Form.Control.Feedback type="invalid">{errors.gioBatDau}</Form.Control.Feedback>
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                    <Row className="mb-3">
+                      <Col md={6}>
+                        <Form.Group>
+                          <Form.Label>Giá vé cơ bản</Form.Label>
+                          <InputGroup>
+                            <Form.Control type="number" isInvalid={!!errors.giaVeCoBan} value={formData.giaVeCoBan} onChange={e => setFormData(p => ({ ...p, giaVeCoBan: Number(e.target.value) }))} />
+                            <InputGroup.Text>₫</InputGroup.Text>
+                            <Form.Control.Feedback type="invalid">{errors.giaVeCoBan}</Form.Control.Feedback>
+                          </InputGroup>
+                        </Form.Group>
+                      </Col>
+                      {modalMode === 'edit' && (
+                        <Col md={6}>
+                          <Form.Group>
+                            <Form.Label>Trạng thái</Form.Label>
+                            <Form.Select value={formData.trangThai} onChange={e => setFormData(p => ({ ...p, trangThai: Number(e.target.value) }))}>
+                              <option value={1}>Đã lên lịch</option>
+                              <option value={2}>Đang chiếu</option>
+                              <option value={3}>Đã kết thúc</option>
+                              <option value={0}>Đã hủy</option>
+                            </Form.Select>
+                          </Form.Group>
+                        </Col>
+                      )}
+                    </Row>
+                  </>
                 )}
-              </Row>
-            </Form>
+              </Form>
+            </>
           )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowModal(false)}>{modalMode === 'view' ? 'Đóng' : 'Hủy'}</Button>
-          {modalMode !== 'view' && <Button variant="danger" onClick={handleSave}><i className="bi bi-check-circle me-2"></i>Lưu</Button>}
+          {modalMode !== 'view' && (
+            isGenerating ? (
+              <Button variant="info" onClick={handleGenerate} className="text-white" disabled={previewShows.length === 0}>
+                <i className="bi bi-check-all me-2"></i>Xác nhận tạo {previewShows.length} suất chiếu
+              </Button>
+            ) : (
+              <Button variant="danger" onClick={handleSave}><i className="bi bi-check-circle me-2"></i>Lưu</Button>
+            )
+          )}
         </Modal.Footer>
       </Modal>
     </div>

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Container, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -10,6 +10,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('googleError')) {
+      setError('Đăng nhập Google thất bại. Vui lòng thử lại.');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +35,10 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:9999/oauth2/authorization/google';
   };
 
   return (
@@ -110,7 +121,7 @@ export default function LoginPage() {
                       <i className="bi bi-facebook me-2"></i>
                       Facebook
                     </Button>
-                    <Button variant="outline-danger" className="flex-grow-1">
+                    <Button type="button" variant="outline-danger" className="flex-grow-1" onClick={handleGoogleLogin}>
                       <i className="bi bi-google me-2"></i>
                       Google
                     </Button>

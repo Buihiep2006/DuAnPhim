@@ -7,6 +7,7 @@ import com.example.datvexemphim.exception.ResourceNotFoundException;
 import com.example.datvexemphim.repository.NhanVienRepository;
 import com.example.datvexemphim.service.NhanVienService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,6 +23,9 @@ public class NhanVienServiceImpl implements NhanVienService {
     @Autowired
     private com.example.datvexemphim.repository.VaiTroRepository vaiTroRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     private NhanVienResponse mapToResponse(NhanVien entity) {
         String vaiTroMa = "";
         if (entity.getVaiTroId() != null) {
@@ -29,7 +33,7 @@ public class NhanVienServiceImpl implements NhanVienService {
                     .map(v -> v.getMa())
                     .orElse("");
         }
-        
+
         return NhanVienResponse.builder()
                 .id(entity.getId())
                 .vaiTroId(entity.getVaiTroId())
@@ -37,7 +41,6 @@ public class NhanVienServiceImpl implements NhanVienService {
                 .ma(entity.getMa())
                 .hoTen(entity.getHoTen())
                 .email(entity.getEmail())
-                .matKhau(entity.getMatKhau())
                 .ngaySinh(entity.getNgaySinh())
                 .gioiTinh(entity.getGioiTinh())
                 .soDienThoai(entity.getSoDienThoai())
@@ -65,7 +68,7 @@ public class NhanVienServiceImpl implements NhanVienService {
         entity.setMa(request.getMa());
         entity.setHoTen(request.getHoTen());
         entity.setEmail(request.getEmail());
-        entity.setMatKhau(request.getMatKhau());
+        entity.setMatKhau(hashPassword(request.getMatKhau()));
         entity.setNgaySinh(request.getNgaySinh());
         entity.setGioiTinh(request.getGioiTinh());
         entity.setSoDienThoai(request.getSoDienThoai());
@@ -82,7 +85,9 @@ public class NhanVienServiceImpl implements NhanVienService {
         entity.setMa(request.getMa());
         entity.setHoTen(request.getHoTen());
         entity.setEmail(request.getEmail());
-        entity.setMatKhau(request.getMatKhau());
+        if (hasText(request.getMatKhau())) {
+            entity.setMatKhau(hashPassword(request.getMatKhau()));
+        }
         entity.setNgaySinh(request.getNgaySinh());
         entity.setGioiTinh(request.getGioiTinh());
         entity.setSoDienThoai(request.getSoDienThoai());
@@ -94,19 +99,57 @@ public class NhanVienServiceImpl implements NhanVienService {
 
     @Override
     public void delete(UUID id) {
-        if (!repository.existsById(id)) throw new ResourceNotFoundException("Not found: " + id);
+        if (!repository.existsById(id)) {
+            throw new ResourceNotFoundException("Not found: " + id);
+        }
         repository.deleteById(id);
     }
 
     @Override
     public NhanVienResponse login(String email, String matKhau) {
         NhanVien nhanVien = repository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Email không tồn tại"));
-        
-        if (!nhanVien.getMatKhau().equals(matKhau)) {
-            throw new RuntimeException("Mật khẩu không đúng");
+                .orElseThrow(() -> new ResourceNotFoundException("Email khong ton tai"));
+
+        if (!passwordMatches(nhanVien.getMatKhau(), matKhau)) {
+            throw new RuntimeException("Mat khau khong dung");
         }
-        
+
+        upgradeLegacyPasswordIfNeeded(nhanVien, matKhau);
         return mapToResponse(nhanVien);
+    }
+
+    private String hashPassword(String rawPassword) {
+        if (!hasText(rawPassword) || isPasswordHash(rawPassword)) {
+            return rawPassword;
+        }
+        return passwordEncoder.encode(rawPassword);
+    }
+
+    private boolean passwordMatches(String storedPassword, String rawPassword) {
+        if (!hasText(storedPassword) || !hasText(rawPassword)) {
+            return false;
+        }
+        if (isPasswordHash(storedPassword)) {
+            return passwordEncoder.matches(rawPassword, storedPassword);
+        }
+        return storedPassword.equals(rawPassword);
+    }
+
+    private void upgradeLegacyPasswordIfNeeded(NhanVien nhanVien, String rawPassword) {
+        if (!hasText(nhanVien.getMatKhau()) || isPasswordHash(nhanVien.getMatKhau())) {
+            return;
+        }
+        if (nhanVien.getMatKhau().equals(rawPassword)) {
+            nhanVien.setMatKhau(passwordEncoder.encode(rawPassword));
+            repository.save(nhanVien);
+        }
+    }
+
+    private boolean isPasswordHash(String value) {
+        return value.startsWith("$2a$") || value.startsWith("$2b$") || value.startsWith("$2y$");
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }

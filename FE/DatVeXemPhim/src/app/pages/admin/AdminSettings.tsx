@@ -1,17 +1,101 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Row, Col, Card, Form, Button, Table, Badge, Alert, 
+  Row, Col, Card, Form, Button, Table, 
   InputGroup, Tabs, Tab 
 } from 'react-bootstrap';
+import { toast } from 'sonner';
+
+interface CaiDatChung {
+  id?: string;
+  thoiGianGiuGhe: number;
+  thoiGianNghiSuatChieu: number;
+  gioMoCua: string;
+  gioDongCua: string;
+  giaVeCoBanMacDinh: number;
+  tyLeTichDiem: number;
+}
 
 const AdminSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'general' | 'pricing' | 'points' | 'email'>('general');
-  const [showSaveAlert, setShowSaveAlert] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<CaiDatChung>({
+    thoiGianGiuGhe: 10,
+    thoiGianNghiSuatChieu: 15,
+    gioMoCua: '08:00',
+    gioDongCua: '23:00',
+    giaVeCoBanMacDinh: 80000,
+    tyLeTichDiem: 1000
+  });
 
-  const handleSave = () => {
-    setShowSaveAlert(true);
-    setTimeout(() => setShowSaveAlert(false), 3000);
+  const API_BASE = 'http://localhost:9999/api/admin/cai-dat-chung';
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch(API_BASE);
+      const data = await response.json();
+      if (data.success && data.data && data.data.length > 0) {
+        const item = data.data[0];
+        setSettings({
+          id: item.id,
+          thoiGianGiuGhe: item.thoiGianGiuGhe,
+          thoiGianNghiSuatChieu: item.thoiGianNghiSuatChieu,
+          gioMoCua: item.gioMoCua ? item.gioMoCua.substring(0, 5) : '08:00',
+          gioDongCua: item.gioDongCua ? item.gioDongCua.substring(0, 5) : '23:00',
+          giaVeCoBanMacDinh: item.giaVeCoBanMacDinh,
+          tyLeTichDiem: item.tyLeTichDiem
+        });
+      }
+    } catch (error) {
+      console.error('Lỗi khi fetch cài đặt:', error);
+      toast.error('Không thể tải cài đặt từ hệ thống');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSave = async () => {
+    try {
+      const method = settings.id ? 'PUT' : 'POST';
+      const url = settings.id ? `${API_BASE}/${settings.id}` : API_BASE;
+      
+      const payload = {
+        ...settings,
+        gioMoCua: settings.gioMoCua + ':00',
+        gioDongCua: settings.gioDongCua + ':00'
+      };
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Đã lưu cài đặt thành công!');
+        if (!settings.id && data.data) {
+          setSettings(prev => ({ ...prev, id: data.data.id }));
+        }
+      } else {
+        toast.error(data.message || 'Lưu cài đặt thất bại');
+      }
+    } catch (error) {
+      console.error('Lỗi khi lưu cài đặt:', error);
+      toast.error('Lỗi hệ thống khi lưu cài đặt');
+    }
+  };
+
+  const handleChange = (field: keyof CaiDatChung, value: any) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+  };
+
+  if (loading) {
+    return <div className="p-5 text-center"><div className="spinner-border text-danger" role="status"></div><p className="mt-2">Đang tải cài đặt...</p></div>;
+  }
 
   return (
     <div>
@@ -25,13 +109,6 @@ const AdminSettings: React.FC = () => {
           Lưu thay đổi
         </Button>
       </div>
-
-      {showSaveAlert && (
-        <Alert variant="success" dismissible onClose={() => setShowSaveAlert(false)}>
-          <i className="bi bi-check-circle me-2"></i>
-          Đã lưu cài đặt thành công!
-        </Alert>
-      )}
 
       <Card className="border-0 shadow-sm">
         <Card.Body>
@@ -52,28 +129,35 @@ const AdminSettings: React.FC = () => {
                       <Form>
                         <Form.Group className="mb-3">
                           <Form.Label>Tên hệ thống</Form.Label>
-                          <Form.Control type="text" defaultValue="DATN Movie Ticketing" />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Slogan</Form.Label>
-                          <Form.Control type="text" defaultValue="Trải nghiệm điện ảnh đỉnh cao" />
+                          <Form.Control type="text" defaultValue="DATN Movie Ticketing" disabled />
+                          <Form.Text className="text-muted italic">Hiện tại chỉ hỗ trợ xem trong DB</Form.Text>
                         </Form.Group>
                         <Form.Group className="mb-3">
                           <Form.Label>Email liên hệ</Form.Label>
-                          <Form.Control type="email" defaultValue="support@datnmovie.com" />
+                          <Form.Control type="email" defaultValue="support@datnmovie.com" disabled />
                         </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Hotline</Form.Label>
-                          <Form.Control type="text" defaultValue="1900-xxxx" />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Địa chỉ</Form.Label>
-                          <Form.Control 
-                            as="textarea" 
-                            rows={2} 
-                            defaultValue="72 Lê Thánh Tôn, Quận 1, TP.HCM" 
-                          />
-                        </Form.Group>
+                        <Row>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Giờ mở cửa</Form.Label>
+                              <Form.Control 
+                                type="time" 
+                                value={settings.gioMoCua} 
+                                onChange={e => handleChange('gioMoCua', e.target.value)} 
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Giờ đóng cửa</Form.Label>
+                              <Form.Control 
+                                type="time" 
+                                value={settings.gioDongCua} 
+                                onChange={e => handleChange('gioDongCua', e.target.value)} 
+                              />
+                            </Form.Group>
+                          </Col>
+                        </Row>
                       </Form>
                     </Card.Body>
                   </Card>
@@ -86,35 +170,23 @@ const AdminSettings: React.FC = () => {
                       <Form>
                         <Form.Group className="mb-3">
                           <Form.Label>Thời gian giữ ghế (phút)</Form.Label>
-                          <Form.Control type="number" defaultValue="10" />
+                          <Form.Control 
+                            type="number" 
+                            value={settings.thoiGianGiuGhe} 
+                            onChange={e => handleChange('thoiGianGiuGhe', parseInt(e.target.value) || 0)} 
+                          />
                           <Form.Text className="text-muted">
                             Thời gian tối đa giữ ghế khi chưa thanh toán
                           </Form.Text>
                         </Form.Group>
                         <Form.Group className="mb-3">
-                          <Form.Label>Số vé tối đa mỗi lần đặt</Form.Label>
-                          <Form.Control type="number" defaultValue="10" />
+                          <Form.Label>Thời gian nghỉ giữa suất chiếu (phút)</Form.Label>
+                          <Form.Control 
+                            type="number" 
+                            value={settings.thoiGianNghiSuatChieu} 
+                            onChange={e => handleChange('thoiGianNghiSuatChieu', parseInt(e.target.value) || 0)} 
+                          />
                         </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Thời gian hủy vé trước suất chiếu (giờ)</Form.Label>
-                          <Form.Control type="number" defaultValue="2" />
-                          <Form.Text className="text-muted">
-                            Khách hàng chỉ có thể hủy vé trước giờ chiếu X giờ
-                          </Form.Text>
-                        </Form.Group>
-                        <Form.Check 
-                          type="switch"
-                          id="auto-release-seats"
-                          label="Tự động giải phóng ghế khi hết thời gian giữ"
-                          defaultChecked
-                          className="mb-2"
-                        />
-                        <Form.Check 
-                          type="switch"
-                          id="allow-guest-booking"
-                          label="Cho phép đặt vé không cần đăng nhập"
-                          defaultChecked={false}
-                        />
                       </Form>
                     </Card.Body>
                   </Card>
@@ -130,37 +202,15 @@ const AdminSettings: React.FC = () => {
                         <Form.Group className="mb-3">
                           <Form.Label>Facebook</Form.Label>
                           <InputGroup>
-                            <InputGroup.Text>
-                              <i className="bi bi-facebook"></i>
-                            </InputGroup.Text>
-                            <Form.Control type="url" placeholder="https://facebook.com/..." />
+                            <InputGroup.Text><i className="bi bi-facebook"></i></InputGroup.Text>
+                            <Form.Control type="url" placeholder="https://facebook.com/..." disabled />
                           </InputGroup>
                         </Form.Group>
                         <Form.Group className="mb-3">
                           <Form.Label>Instagram</Form.Label>
                           <InputGroup>
-                            <InputGroup.Text>
-                              <i className="bi bi-instagram"></i>
-                            </InputGroup.Text>
-                            <Form.Control type="url" placeholder="https://instagram.com/..." />
-                          </InputGroup>
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>YouTube</Form.Label>
-                          <InputGroup>
-                            <InputGroup.Text>
-                              <i className="bi bi-youtube"></i>
-                            </InputGroup.Text>
-                            <Form.Control type="url" placeholder="https://youtube.com/..." />
-                          </InputGroup>
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>TikTok</Form.Label>
-                          <InputGroup>
-                            <InputGroup.Text>
-                              <i className="bi bi-tiktok"></i>
-                            </InputGroup.Text>
-                            <Form.Control type="url" placeholder="https://tiktok.com/..." />
+                            <InputGroup.Text><i className="bi bi-instagram"></i></InputGroup.Text>
+                            <Form.Control type="url" placeholder="https://instagram.com/..." disabled />
                           </InputGroup>
                         </Form.Group>
                       </Form>
@@ -178,13 +228,7 @@ const AdminSettings: React.FC = () => {
                           id="require-email-verify"
                           label="Yêu cầu xác thực email khi đăng ký"
                           defaultChecked
-                          className="mb-2"
-                        />
-                        <Form.Check 
-                          type="switch"
-                          id="enable-2fa"
-                          label="Bật xác thực 2 yếu tố (2FA)"
-                          defaultChecked={false}
+                          disabled
                           className="mb-2"
                         />
                         <Form.Check 
@@ -192,12 +236,9 @@ const AdminSettings: React.FC = () => {
                           id="auto-logout"
                           label="Tự động đăng xuất sau 30 phút không hoạt động"
                           defaultChecked
+                          disabled
                           className="mb-3"
                         />
-                        <Form.Group className="mb-3">
-                          <Form.Label>Độ dài mật khẩu tối thiểu</Form.Label>
-                          <Form.Control type="number" defaultValue="8" />
-                        </Form.Group>
                       </Form>
                     </Card.Body>
                   </Card>
@@ -212,11 +253,26 @@ const AdminSettings: React.FC = () => {
                   <h6 className="mb-0 fw-semibold">Cấu hình giá vé cơ bản</h6>
                 </Card.Header>
                 <Card.Body>
+                  <Row className="align-items-center mb-3">
+                    <Col md={4}>
+                      <Form.Label className="mb-0 fw-bold">Giá vé cơ bản mặc định (VND)</Form.Label>
+                    </Col>
+                    <Col md={4}>
+                      <InputGroup>
+                        <Form.Control 
+                          type="number" 
+                          value={settings.giaVeCoBanMacDinh} 
+                          onChange={e => handleChange('giaVeCoBanMacDinh', parseFloat(e.target.value) || 0)} 
+                        />
+                        <InputGroup.Text>VND</InputGroup.Text>
+                      </InputGroup>
+                    </Col>
+                  </Row>
+                  <hr />
                   <Table bordered>
                     <thead className="bg-light">
                       <tr>
                         <th>Loại phòng</th>
-                        <th className="text-end">Giá cơ bản (VND)</th>
                         <th className="text-end">Phụ thu cuối tuần (%)</th>
                         <th className="text-end">Phụ thu lễ (%)</th>
                       </tr>
@@ -224,94 +280,17 @@ const AdminSettings: React.FC = () => {
                     <tbody>
                       <tr>
                         <td>2D Standard</td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="80000" size="sm" />
-                        </td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="10" size="sm" />
-                        </td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="20" size="sm" />
-                        </td>
+                        <td className="text-end">10% (Tĩnh)</td>
+                        <td className="text-end">20% (Tĩnh)</td>
                       </tr>
                       <tr>
-                        <td>3D</td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="100000" size="sm" />
-                        </td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="15" size="sm" />
-                        </td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="25" size="sm" />
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>IMAX</td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="150000" size="sm" />
-                        </td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="20" size="sm" />
-                        </td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="30" size="sm" />
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>4DX</td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="180000" size="sm" />
-                        </td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="20" size="sm" />
-                        </td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="30" size="sm" />
-                        </td>
+                        <td>3D / IMAX</td>
+                        <td className="text-end">15% (Tĩnh)</td>
+                        <td className="text-end">25% (Tĩnh)</td>
                       </tr>
                     </tbody>
                   </Table>
-                </Card.Body>
-              </Card>
-
-              <Card className="border">
-                <Card.Header className="bg-light">
-                  <h6 className="mb-0 fw-semibold">Phụ thu theo loại ghế</h6>
-                </Card.Header>
-                <Card.Body>
-                  <Table bordered>
-                    <thead className="bg-light">
-                      <tr>
-                        <th>Loại ghế</th>
-                        <th className="text-end">Phụ thu (VND)</th>
-                        <th>Mô tả</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td><Badge bg="secondary">Standard</Badge></td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="0" size="sm" disabled />
-                        </td>
-                        <td>Ghế thường</td>
-                      </tr>
-                      <tr>
-                        <td><Badge bg="warning">VIP</Badge></td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="20000" size="sm" />
-                        </td>
-                        <td>Ghế VIP cao cấp</td>
-                      </tr>
-                      <tr>
-                        <td><Badge bg="danger">Couple</Badge></td>
-                        <td className="text-end">
-                          <Form.Control type="number" defaultValue="30000" size="sm" />
-                        </td>
-                        <td>Ghế đôi</td>
-                      </tr>
-                    </tbody>
-                  </Table>
+                  <Form.Text className="text-muted">Lưu ý: Các mức phụ thu hiện đang được cấu hình cứng trong hệ thống.</Form.Text>
                 </Card.Body>
               </Card>
             </Tab>
@@ -329,97 +308,18 @@ const AdminSettings: React.FC = () => {
                         <Form.Group className="mb-3">
                           <Form.Label>Tỷ lệ quy đổi</Form.Label>
                           <InputGroup>
-                            <Form.Control type="number" defaultValue="1000" />
+                            <Form.Control 
+                              type="number" 
+                              value={settings.tyLeTichDiem} 
+                              onChange={e => handleChange('tyLeTichDiem', parseInt(e.target.value) || 0)} 
+                            />
                             <InputGroup.Text>VND = 1 điểm</InputGroup.Text>
                           </InputGroup>
                           <Form.Text className="text-muted">
-                            Cứ 1,000 VND chi tiêu được 1 điểm
+                            Ví dụ: {settings.tyLeTichDiem.toLocaleString()} VND chi tiêu được 1 điểm
                           </Form.Text>
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Điểm thưởng sinh nhật</Form.Label>
-                          <Form.Control type="number" defaultValue="100" />
-                          <Form.Text className="text-muted">
-                            Điểm thưởng tự động trong tháng sinh nhật
-                          </Form.Text>
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Điểm thưởng đăng ký mới</Form.Label>
-                          <Form.Control type="number" defaultValue="50" />
-                        </Form.Group>
-                        <Form.Check 
-                          type="switch"
-                          id="points-expire"
-                          label="Điểm có thời hạn sử dụng"
-                          defaultChecked
-                          className="mb-2"
-                        />
-                        <Form.Group className="mb-3">
-                          <Form.Label>Thời hạn điểm (tháng)</Form.Label>
-                          <Form.Control type="number" defaultValue="12" />
                         </Form.Group>
                       </Form>
-                    </Card.Body>
-                  </Card>
-                </Col>
-
-                <Col lg={6}>
-                  <Card className="border">
-                    <Card.Header className="bg-light">
-                      <h6 className="mb-0 fw-semibold">Hạng thành viên</h6>
-                    </Card.Header>
-                    <Card.Body>
-                      <Table bordered>
-                        <thead className="bg-light">
-                          <tr>
-                            <th>Hạng</th>
-                            <th className="text-end">Điểm tối thiểu</th>
-                            <th className="text-end">Hệ số tích điểm</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td><Badge bg="danger">Bronze</Badge></td>
-                            <td className="text-end">
-                              <Form.Control type="number" defaultValue="0" size="sm" disabled />
-                            </td>
-                            <td className="text-end">
-                              <Form.Control type="number" defaultValue="1" size="sm" step="0.1" />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td><Badge bg="light" text="dark" className="border">Silver</Badge></td>
-                            <td className="text-end">
-                              <Form.Control type="number" defaultValue="1000" size="sm" />
-                            </td>
-                            <td className="text-end">
-                              <Form.Control type="number" defaultValue="1.2" size="sm" step="0.1" />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td><Badge bg="warning" text="dark">Gold</Badge></td>
-                            <td className="text-end">
-                              <Form.Control type="number" defaultValue="2000" size="sm" />
-                            </td>
-                            <td className="text-end">
-                              <Form.Control type="number" defaultValue="1.5" size="sm" step="0.1" />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td><Badge bg="dark">Platinum</Badge></td>
-                            <td className="text-end">
-                              <Form.Control type="number" defaultValue="5000" size="sm" />
-                            </td>
-                            <td className="text-end">
-                              <Form.Control type="number" defaultValue="2" size="sm" step="0.1" />
-                            </td>
-                          </tr>
-                        </tbody>
-                      </Table>
-                      <Form.Text className="text-muted">
-                        <i className="bi bi-info-circle me-1"></i>
-                        Hệ số tích điểm: Bronze x1, Silver x1.2, Gold x1.5, Platinum x2
-                      </Form.Text>
                     </Card.Body>
                   </Card>
                 </Col>
@@ -428,95 +328,17 @@ const AdminSettings: React.FC = () => {
 
             {/* Email Settings */}
             <Tab eventKey="email" title={<><i className="bi bi-envelope me-2"></i>Email & Thông báo</>}>
-              <Row>
-                <Col lg={6}>
-                  <Card className="border mb-4">
-                    <Card.Header className="bg-light">
-                      <h6 className="mb-0 fw-semibold">Cấu hình Email SMTP</h6>
-                    </Card.Header>
-                    <Card.Body>
-                      <Form>
-                        <Form.Group className="mb-3">
-                          <Form.Label>SMTP Host</Form.Label>
-                          <Form.Control type="text" defaultValue="smtp.gmail.com" />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>SMTP Port</Form.Label>
-                          <Form.Control type="number" defaultValue="587" />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Username</Form.Label>
-                          <Form.Control type="email" defaultValue="noreply@datnmovie.com" />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Password</Form.Label>
-                          <Form.Control type="password" defaultValue="********" />
-                        </Form.Group>
-                        <Form.Check 
-                          type="switch"
-                          id="use-ssl"
-                          label="Sử dụng SSL/TLS"
-                          defaultChecked
-                        />
-                      </Form>
-                    </Card.Body>
-                  </Card>
-                </Col>
-
-                <Col lg={6}>
-                  <Card className="border">
-                    <Card.Header className="bg-light">
-                      <h6 className="mb-0 fw-semibold">Thông báo tự động</h6>
-                    </Card.Header>
-                    <Card.Body>
-                      <Form>
-                        <div className="mb-3">
-                          <Form.Check 
-                            type="switch"
-                            id="email-booking-confirm"
-                            label="Gửi email xác nhận đặt vé"
-                            defaultChecked
-                            className="mb-2"
-                          />
-                          <Form.Check 
-                            type="switch"
-                            id="email-payment-success"
-                            label="Gửi email thanh toán thành công"
-                            defaultChecked
-                            className="mb-2"
-                          />
-                          <Form.Check 
-                            type="switch"
-                            id="email-reminder"
-                            label="Gửi email nhắc nhở trước giờ chiếu"
-                            defaultChecked
-                            className="mb-2"
-                          />
-                          <Form.Check 
-                            type="switch"
-                            id="email-promotion"
-                            label="Gửi email khuyến mãi/tin tức"
-                            defaultChecked={false}
-                            className="mb-2"
-                          />
-                          <Form.Check 
-                            type="switch"
-                            id="email-birthday"
-                            label="Gửi email chúc mừng sinh nhật"
-                            defaultChecked
-                            className="mb-2"
-                          />
-                        </div>
-
-                        <Form.Group className="mb-3">
-                          <Form.Label>Thời gian gửi email nhắc nhở (giờ trước suất chiếu)</Form.Label>
-                          <Form.Control type="number" defaultValue="2" />
-                        </Form.Group>
-                      </Form>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
+              <Card className="border mb-4">
+                <Card.Header className="bg-light">
+                  <h6 className="mb-0 fw-semibold">Cấu hình Email SMTP</h6>
+                </Card.Header>
+                <Card.Body>
+                  <div className="text-center py-4">
+                    <i className="bi bi-shield-lock-fill text-muted fs-1 mb-3 d-block"></i>
+                    <p className="mb-0">Cấu hình Email hiện được quản lý qua file <code>application.properties</code> trong Backend.</p>
+                  </div>
+                </Card.Body>
+              </Card>
             </Tab>
           </Tabs>
         </Card.Body>
@@ -526,3 +348,4 @@ const AdminSettings: React.FC = () => {
 };
 
 export default AdminSettings;
+

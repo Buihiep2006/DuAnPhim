@@ -4,7 +4,8 @@ import { Container, Row, Col, Card, Button, Form, ListGroup, Badge, Alert, Spinn
 import { useBooking } from '../../contexts/BookingContext';
 import { useAuth } from '../../contexts/AuthContext';
 
-const API = 'http://localhost:9999/api/admin';
+const PUBLIC_API = 'http://localhost:9999/api/public';
+const CUSTOMER_API = 'http://localhost:9999/api/customer';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -34,24 +35,24 @@ export default function CheckoutPage() {
       setLoading(true);
       
       // Fetch Showtime
-      const sRes = await fetch(`${API}/suat-chieu/${bookingState.suat_chieu_id}`);
+      const sRes = await fetch(`${PUBLIC_API}/suat-chieu/${bookingState.suat_chieu_id}`);
       const sJson = await sRes.json();
       if (sJson.success) {
         setShowtime(sJson.data);
         
         // Fetch Seats for this room
-        const seatsRes = await fetch(`${API}/ghe-ngoi/phong-chieu/${sJson.data.phongChieuId}`);
+        const seatsRes = await fetch(`${PUBLIC_API}/ghe-ngoi/phong-chieu/${sJson.data.phongChieuId}`);
         const seatsJson = await seatsRes.json();
         if (seatsJson.success) setRoomSeats(seatsJson.data);
       }
 
       // Fetch Services
-      const servicesRes = await fetch(`${API}/dich-vu`);
+      const servicesRes = await fetch(`${PUBLIC_API}/dich-vu`);
       const servicesJson = await servicesRes.json();
       if (servicesJson.success) setServices(servicesJson.data);
 
       // Fetch Promotions
-      const promoRes = await fetch(`${API}/khuyen-mai`);
+      const promoRes = await fetch(`${PUBLIC_API}/khuyen-mai`);
       const promoJson = await promoRes.json();
       if (promoJson.success) setPromotions(promoJson.data);
 
@@ -121,7 +122,6 @@ export default function CheckoutPage() {
       const selectedPromo = promotions.find(k => k.maCode === promoCode);
       
       const payload = {
-        khachHangId: user.id || (user as any).ma, // Adjust based on user object
         suatChieuId: bookingState.suat_chieu_id,
         khuyenMaiId: selectedPromo?.id,
         gheNgoiIds: bookingState.selected_seats,
@@ -139,7 +139,7 @@ export default function CheckoutPage() {
         diemThuongSuDung: usePoints ? user.diem_tich_luy : 0
       };
 
-      const res = await fetch(`${API}/hoa-don/checkout`, {
+      const res = await fetch(`${CUSTOMER_API}/hoa-don/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -147,9 +147,41 @@ export default function CheckoutPage() {
 
       const json = await res.json();
       if (json.success) {
-        alert('Thanh toán thành công! ' + json.message);
+        const selectedSeatsNames = bookingState.selected_seats.map(id => 
+          roomSeats.find(s => s.id === id)?.maGhe || id
+        );
+
+        const selectedServicesNames = bookingState.selected_services.map(s => {
+          const dv = services.find(d => d.id === s.id);
+          return {
+            ten: dv?.ten || 'Dịch vụ',
+            soLuong: s.quantity,
+            donGia: dv?.giaBan || 0,
+            thanhTien: (dv?.giaBan || 0) * s.quantity
+          };
+        }).filter(s => s.soLuong > 0);
+
+        const bookingInfo = {
+          tenPhim: showtime.tenPhim,
+          thoiGianBatDau: showtime.thoiGianBatDau,
+          tenRap: showtime.tenRap,
+          tenPhongChieu: showtime.tenPhongChieu,
+          selectedSeatsNames: selectedSeatsNames,
+          selectedServices: selectedServicesNames,
+          soTienGiam: calculateDiscount() + calculatePointsDiscount(),
+          chinhSachGiam: [
+            { ten: 'Khuyến mãi', giam: calculateDiscount() },
+            { ten: 'Điểm tích lũy', giam: calculatePointsDiscount() }
+          ].filter(i => i.giam > 0)
+        };
+
         clearBooking();
-        navigate('/profile');
+        navigate('/booking-success', { 
+          state: { 
+            invoice: json.data,
+            bookingInfo: bookingInfo
+          } 
+        });
       } else {
         setError(json.message || 'Thanh toán thất bại');
       }

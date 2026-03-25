@@ -11,7 +11,15 @@ import org.hibernate.annotations.ColumnDefault;
 @Getter
 @Setter
 @Entity
-@Table(name = "ve_ban")
+@Table(
+    name = "ve_ban",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_ve_ban_suat_chieu_ghe_ngoi_trang_thai",
+            columnNames = {"suat_chieu_id", "ghe_ngoi_id", "trang_thai"}
+        )
+    }
+)
 public class VeBan {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

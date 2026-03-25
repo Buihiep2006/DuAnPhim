@@ -2,7 +2,9 @@ package com.example.datvexemphim.controller;
 
 import com.example.datvexemphim.dto.request.NhanVienRequest;
 import com.example.datvexemphim.dto.response.ApiResponse;
+import com.example.datvexemphim.dto.response.AuthResponse;
 import com.example.datvexemphim.dto.response.NhanVienResponse;
+import com.example.datvexemphim.security.AuthTokenService;
 import com.example.datvexemphim.service.NhanVienService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,37 +22,44 @@ public class NhanVienController {
     @Autowired
     private NhanVienService service;
 
+    @Autowired
+    private AuthTokenService authTokenService;
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<NhanVienResponse>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success(service.getAll(), "Lấy danh sách thành công"));
+        return ResponseEntity.ok(ApiResponse.success(service.getAll(), "Lay danh sach thanh cong"));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<NhanVienResponse>> getById(@PathVariable("id") UUID id) {
-        return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Lấy thông tin thành công"));
+        return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Lay thong tin thanh cong"));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<NhanVienResponse>> create(@Valid @RequestBody NhanVienRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(service.create(request), "Thêm mới thành công"));
+        return ResponseEntity.ok(ApiResponse.success(service.create(request), "Them moi thanh cong"));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<NhanVienResponse>> update(@PathVariable("id") UUID id, @Valid @RequestBody NhanVienRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(service.update(id, request), "Cập nhật thành công"));
+        return ResponseEntity.ok(ApiResponse.success(service.update(id, request), "Cap nhat thanh cong"));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") UUID id) {
         service.delete(id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Xóa thành công"));
+        return ResponseEntity.ok(ApiResponse.success(null, "Xoa thanh cong"));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<NhanVienResponse>> login(@RequestBody java.util.Map<String, String> request) {
+    public ResponseEntity<ApiResponse<AuthResponse<NhanVienResponse>>> login(@RequestBody java.util.Map<String, String> request) {
         String email = request.get("email");
         String matKhau = request.get("matKhau");
-        return ResponseEntity.ok(ApiResponse.success(service.login(email, matKhau), "Đăng nhập thành công"));
+        NhanVienResponse user = service.login(email, matKhau);
+        AuthResponse<NhanVienResponse> response = AuthResponse.<NhanVienResponse>builder()
+                .token(authTokenService.generateToken(user.getId(), "ADMIN"))
+                .user(user)
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(response, "Dang nhap thanh cong"));
     }
 }
-

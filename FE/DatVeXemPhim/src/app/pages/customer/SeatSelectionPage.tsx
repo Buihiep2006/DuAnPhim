@@ -4,7 +4,7 @@ import { Container, Row, Col, Button, Card, Badge, Alert, Spinner } from 'react-
 import { useBooking } from '../../contexts/BookingContext';
 import { GheNgoiWithDetails } from '../../../types/database.types';
 
-const API = 'http://localhost:9999/api/admin';
+const API = 'http://localhost:9999/api/public';
 
 export default function SeatSelectionPage() {
   const { showtimeId } = useParams<{ showtimeId: string }>();
@@ -16,6 +16,7 @@ export default function SeatSelectionPage() {
   const [roomSeats, setRoomSeats] = useState<any[]>([]);
   const [soldSeats, setSoldSeats] = useState<string[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  const [seatTypes, setSeatTypes] = useState<any[]>([]);
 
   useEffect(() => {
     if (showtimeId) {
@@ -26,6 +27,20 @@ export default function SeatSelectionPage() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
+
+      // Fetch seat types for surcharges
+      const typesRes = await fetch(`${API}/loai-ghe`);
+      const typesJson = await typesRes.json();
+      if (typesJson.success) setSeatTypes(typesJson.data);
+
+      // Fetch settings for timer
+      const settingsRes = await fetch('http://localhost:9999/api/public/cai-dat-chung');
+      const settingsJson = await settingsRes.json();
+      let holdTime = 10;
+      if (settingsJson.success && settingsJson.data && settingsJson.data.length > 0) {
+        holdTime = settingsJson.data[0].thoiGianGiuGhe || 10;
+      }
+
       const sRes = await fetch(`${API}/suat-chieu/${showtimeId}`);
       const sJson = await sRes.json();
       
@@ -33,7 +48,7 @@ export default function SeatSelectionPage() {
         const s = sJson.data;
         setLocalShowtime(s);
         setShowtime(s.id);
-        startTimer(10);
+        startTimer(holdTime);
 
         // Fetch seats for this room
         const seatsRes = await fetch(`${API}/ghe-ngoi/phong-chieu/${s.phongChieuId}`);
@@ -54,6 +69,11 @@ export default function SeatSelectionPage() {
     }
   };
 
+  const now = new Date();
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 7);
+  maxDate.setHours(23, 59, 59, 999);
+
   if (loading) {
     return (
       <Container className="py-5 text-center">
@@ -69,6 +89,23 @@ export default function SeatSelectionPage() {
         <Button variant="danger" onClick={() => navigate('/')}>
           Về trang chủ
         </Button>
+      </Container>
+    );
+  }
+
+  const startTime = new Date(showtime.thoiGianBatDau);
+  if (startTime < now || startTime > maxDate) {
+    return (
+      <Container className="py-5 text-center">
+        <Alert variant="danger" className="d-inline-block">
+          <i className="bi bi-exclamation-triangle-fill me-2"></i>
+          Suất chiếu này hiện không khả dụng để đặt vé (đã quá giờ hoặc ngoài khung 7 ngày).
+        </Alert>
+        <div className="mt-3">
+          <Button variant="danger" onClick={() => navigate('/')}>
+            Về trang chủ
+          </Button>
+        </div>
       </Container>
     );
   }
@@ -101,8 +138,9 @@ export default function SeatSelectionPage() {
     if (soldSeats.includes(seatId)) return 'seat sold';
     if (selectedSeats.includes(seatId)) return 'seat selected';
 
-    if (loaiGheTen === 'VIP') return 'seat available vip';
-    if (loaiGheTen === 'COUPLE') return 'seat available couple';
+    const name = (loaiGheTen || '').toLowerCase();
+    if (name.includes('vip')) return 'seat available vip';
+    if (name.includes('đôi') || name.includes('couple') || name.includes('sweetbox') || name.includes('đồi')) return 'seat available couple';
 
     return 'seat available';
   };
@@ -112,7 +150,8 @@ export default function SeatSelectionPage() {
     selectedSeats.forEach(seatId => {
       const seat = roomSeats.find(s => s.id === seatId);
       if (seat) {
-        total += (showtime.giaVeCoBan || 0) + (seat.phuThu || 0);
+        const surcharge = seat.phuThu || seatTypes.find(t => t.id === seat.loaiGheId)?.phuThu || 0;
+        total += (showtime.giaVeCoBan || 0) + surcharge;
       }
     });
     return total;
@@ -197,14 +236,15 @@ export default function SeatSelectionPage() {
                   <div className="seat sold me-2"></div>
                   <small>Ghế đã bán</small>
                 </div>
-                <div className="d-flex align-items-center">
-                  <div className="seat available vip me-2"></div>
-                  <small>Ghế VIP (+30k)</small>
-                </div>
-                <div className="d-flex align-items-center">
-                  <div className="seat available couple me-2"></div>
-                  <small>Ghế đôi (+50k)</small>
-                </div>
+                {seatTypes.filter(t => {
+                  const name = t.ten.toLowerCase();
+                  return name.includes('vip') || name.includes('đôi') || name.includes('couple') || name.includes('sweetbox') || name.includes('đồi');
+                }).map((t: any) => (
+                  <div key={t.id} className="d-flex align-items-center">
+                    <div className={`seat available ${t.ten.toLowerCase().includes('vip') ? 'vip' : 'couple'} me-2`}></div>
+                    <small>Ghế {t.ten} (+{formatCurrency(t.phuThu)})</small>
+                  </div>
+                ))}
               </div>
             </Card.Body>
           </Card>
